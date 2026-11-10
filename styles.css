@@ -332,3 +332,12 @@
 .guild-name small{font-weight:normal;color:#846040}
 .guild-empty{padding:14px;margin:0;color:#74614f;font-size:12px}
 @media(max-width:650px){.guild-tier-options{grid-template-columns:repeat(2,minmax(0,1fr))}.guild-member-row{font-size:10px}}
+
+/* v1.4.3 — Guild Hall paging and rank sharing */
+.guild-your-standing{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#f8ebd2;border:2px solid #bca681;padding:12px;margin-bottom:7px}
+.guild-your-standing p{margin:4px 0 0;font-size:12px}
+.guild-your-standing .secondary-button,.guild-pagination .secondary-button{font-size:9px;padding:11px 13px}
+.guild-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:8px 0}
+.guild-pagination .mini-meta{margin:4px 0}
+.guild-share-fallback{display:block;width:100%;margin-top:9px;padding:9px;border:2px solid #bca681;min-height:70px;font:11px/1.5 'Space Mono',monospace;color:#352d28;background:#fff7e9}
+@media(max-width:650px){.guild-your-standing,.guild-pagination{align-items:stretch;flex-direction:column}.guild-your-standing .secondary-button,.guild-pagination .secondary-button{width:100%}}

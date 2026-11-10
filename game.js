@@ -325,48 +325,88 @@ function showHubPanel(panel){
     body.innerHTML=`<p>One adventure completed. More lands wait beyond the mist…</p><div class="world-map"><div class="map-region autumn"><span>🍂</span><strong>THE AUTUMN CASTLE</strong><small>DISCOVERED · EDITION 01</small></div><div class="map-region locked"><span>🔒</span><strong>THE FROSTBOUND NORTH</strong><small>COMING SOON</small></div><div class="map-region locked"><span>🔒</span><strong>THE UNKNOWN WILDS</strong><small>FUTURE QUEST</small></div><div class="map-region locked"><span>🔒</span><strong>UNMARKED TERRITORY</strong><small>FUTURE QUEST</small></div></div><p class="mini-meta">Future newsletter lands will unlock here; names and themes are placeholders.</p>`;
   }
 }
-// Guild data comes from a read-only, moderated Supabase function.
-// It never exposes email addresses or raw player IDs.
+// Guild data comes from an authenticated, read-only, moderated Supabase function.
+// Fetch the top five first; each Load More action requests five additional records.
+// The player rank is the rank for THEIR saved guild, regardless of the selected tab.
 let guildRequestCounter=0;
-async function loadPublicGuild(container, tier){
+const GUILD_PAGE_SIZE=5;
+const GUILD_MAX_RESULTS=100; // The existing quest_public_guild RPC caps p_limit at 100.
+async function loadPublicGuild(container, tier, limit=GUILD_PAGE_SIZE){
   const request=++guildRequestCounter;
   const knownTiers=['LEGENDARY','RARE','GOOD','MEDIUM','BASIC'];
   const selected=knownTiers.includes(tier)?tier:(knownTiers.includes(EDITION.outcomes[state.outcome]?.tier)?EDITION.outcomes[state.outcome].tier:'BASIC');
+  const requestedLimit=Math.min(GUILD_MAX_RESULTS,Math.max(GUILD_PAGE_SIZE,limit));
   try{
     const client=window.getAdventureClient?.();
     if(!client)throw new Error('Supabase is not connected');
     const {data,error}=await client.rpc('quest_public_guild', {
-      p_edition_id:'autumn-01',p_tier:selected,p_limit:50
+      p_edition_id:'autumn-01',p_tier:selected,p_limit:requestedLimit
     });
     if(error)throw error;
     if(request!==guildRequestCounter || $('hub-modal').dataset.panel!=='guild')return;
     const guilds=Array.isArray(data?.guilds)?data.guilds:[];
     const members=Array.isArray(data?.members)?data.members:[];
-    const yourTier=data?.your_guild || (state.outcome==='perished'?null:EDITION.outcomes[state.outcome]?.tier);
+    const ownTier=knownTiers.includes(data?.your_guild)?data.your_guild:null;
+    const ownRank=Number(data?.your_rank)||null;
+    const ownName=String(state.user?.username||'Traveler');
+    const ownGuildMeta=guilds.find(g=>g.tier===ownTier);
+    const selectedGuildMeta=guilds.find(g=>g.tier===selected);
+    const selectedCount=Math.max(0,Number(selectedGuildMeta?.members)||0);
+    const hasMore=members.length<selectedCount && members.length<GUILD_MAX_RESULTS;
     const guildButtons=guilds.map(g=>`<button type="button" class="guild-tier-button ${g.tier===selected?'selected':''}" data-guild-tier="${escapeHtml(g.tier)}" aria-pressed="${g.tier===selected}">${escapeHtml(g.tier)} <span>${Number(g.members)||0}</span></button>`).join('');
-    const displayRows=members.map(m=>`<div class="guild-member-row ${m.is_you?'your-guild':''}">
+    const displayRows=members.map(m=>`<div class="guild-member-row ${m.is_you?'your-guild':''}" role="row">
       <span class="guild-rank">#${Number(m.rank)||'—'}</span>
       <span class="guild-name">${escapeHtml(m.username||'Adventurer')}${m.is_you?' <small>(you)</small>':''}</span>
       <span>${m.duration_ms==null?'—':formatDuration(m.duration_ms)}</span>
       <span>${Number(m.attempts)||0}</span>
     </div>`).join('');
-    container.innerHTML=`<p><strong>Your guild:</strong> ${escapeHtml(yourTier||'Not yet assigned')}${data?.your_rank?' · Rank #'+Number(data.your_rank):''}</p>
-      <p class="mini-meta">Select a Guild to see its adventurers. Ranked by fastest recorded successful run.</p>
+    const rankText=ownTier&&ownRank?`You're #${ownRank} in the ${ownTier} Guild`:'Complete an adventure to earn a Guild rank.';
+    container.innerHTML=`<div class="guild-your-standing"><div><strong>Your standing</strong><p>${escapeHtml(rankText)}</p></div>${ownTier&&ownRank?'<button type="button" id="guild-share-rank" class="secondary-button">SHARE MY RANK</button>':''}</div>
+      <p id="guild-share-feedback" class="mini-meta" role="status" aria-live="polite"></p>
+      <p class="mini-meta">Choose a Guild to view its fastest adventurers.</p>
       <div class="guild-tier-options">${guildButtons}</div>
       <div class="guild-member-grid" role="table" aria-label="${escapeHtml(selected)} Guild rankings">
         <div class="guild-member-row guild-member-header" role="row"><span>Rank</span><span>Adventurer</span><span>Time</span><span>Attempts</span></div>
         ${displayRows || '<p class="guild-empty">No visible members in this guild yet.</p>'}
       </div>
-      <p class="mini-meta">Showing up to 50 members of the ${escapeHtml(selected)} Guild. Times and attempts are recorded by the game.</p>`;
+      <div class="guild-pagination"><p class="mini-meta">Showing ${members.length} of ${selectedCount} ${escapeHtml(selected)} Guild members.${selectedCount>GUILD_MAX_RESULTS?' First 100 ranks available.':''}</p>
+        ${hasMore?'<button type="button" class="secondary-button" id="guild-load-more">LOAD MORE</button>':''}
+      </div>`;
     container.querySelectorAll('[data-guild-tier]').forEach(button=>button.addEventListener('click',()=>{
       container.innerHTML='<p class="mini-meta">Loading Guild members…</p>';
-      loadPublicGuild(container,button.dataset.guildTier);
+      loadPublicGuild(container,button.dataset.guildTier,GUILD_PAGE_SIZE);
     }));
+    container.querySelector('#guild-load-more')?.addEventListener('click',()=>{
+      const button=container.querySelector('#guild-load-more');
+      button.disabled=true;
+      button.textContent='LOADING…';
+      loadPublicGuild(container,selected,requestedLimit+GUILD_PAGE_SIZE);
+    });
+    container.querySelector('#guild-share-rank')?.addEventListener('click',async()=>{
+      const feedback=container.querySelector('#guild-share-feedback');
+      const url=location.origin+location.pathname;
+      // Only share public information, never email addresses or account IDs.
+      const shareText=`I'm #${ownRank} in the ${ownTier} Guild in The Autumn Castle! Join The Quest: ${url}`;
+      try{
+        await navigator.clipboard.writeText(shareText);
+        feedback.textContent='Your Guild rank and adventure link were copied!';
+      }catch(err){
+        // A text field fallback lets the player copy manually when clipboard APIs are blocked.
+        feedback.textContent='Copy your rank message below:';
+        const field=document.createElement('textarea');
+        field.className='guild-share-fallback';
+        field.readOnly=true;
+        field.value=shareText;
+        field.setAttribute('aria-label','Guild rank message to copy');
+        feedback.appendChild(field);
+        field.focus();field.select();
+      }
+    });
   }catch(err){
     if(request!==guildRequestCounter || $('hub-modal').dataset.panel!=='guild')return;
     const message=String(err?.message||err);
     container.innerHTML=`<p>Could not load the Guild Hall.</p><p class="mini-meta">${escapeHtml(message)}</p><button type="button" class="secondary-button" id="guild-retry">RETRY</button>`;
-    container.querySelector('#guild-retry')?.addEventListener('click',()=>loadPublicGuild(container,selected));
+    container.querySelector('#guild-retry')?.addEventListener('click',()=>loadPublicGuild(container,selected,requestedLimit));
   }
 }
 
