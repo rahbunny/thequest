@@ -299,3 +299,8 @@
 .auth-other .secondary-button{font-size:8px;padding:12px}
 #auth-header{display:inline-block;color:var(--gold);padding-left:10px}
 @media(max-width:650px){.auth-switch{flex-wrap:wrap}.auth-other .secondary-button{flex:1}.home-auth-controls .secondary-button{font-size:7px}}
+
+/* v1.3 retry UI */
+.retry-panel{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:20px;border:2px dashed #b18c5c;padding:18px;background:#f5ead5}
+.retry-panel strong{font:25px 'Press Start 2P',monospace;color:#8b5034}
+.retry-panel .secondary-button:disabled{opacity:.55;cursor:not-allowed}

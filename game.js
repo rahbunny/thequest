@@ -133,9 +133,11 @@ function ensureTravelerSprite(){
   }
   return traveler;
 }
-function startGame(){
+async function startGame(){
+  try{await window.adventureQuest.begin();}
+  catch(err){alert('Cannot start the adventure right now: '+err.message);return;}
   state.nodeId='start'; state.decisions=0; state.startedAt=Date.now(); state.completedAt=0; state.outcome=null; state.history=[];
-  state.shadowRouteAvailable = new URLSearchParams(location.search).get('shadow') === '1' || Math.random() < EDITION.shadowRouteChance;
+  state.shadowRouteAvailable = window.adventureQuest.shadowEnabled;
   showNode();
 }
 function showNode(){
@@ -218,7 +220,11 @@ function chooseAnswer(answer){
   $('traveler').classList.add('is-walking');
   transition(()=>{state.nodeId=answer.next;showNode();});
 }
-function finish(outcome){
+async function finish(outcome){
+  try {
+    const verified=await window.adventureQuest.finish(state.history);
+    if(verified!==outcome) throw new Error('Server-verified outcome did not match the story.');
+  }catch(err){alert('Your result could not be verified and saved yet: '+err.message);return;}
   state.outcome=outcome; state.completedAt=Date.now();
   // A short interlude BEFORE the 5-second prize reveal.
   showScreen('hub');
@@ -268,6 +274,7 @@ function openHub(){
   $('hub-modal-body').innerHTML='';
   showHubPanel('reward');
   showScreen('hub');
+  window.adventureQuest?.refreshRetryUI();
 }
 function showHubPanel(panel){
   const body=$('hub-modal-body');
@@ -279,18 +286,27 @@ function showHubPanel(panel){
   if(panel==='reward'){
     body.innerHTML=`<div class="hub-reward-display"><img src="assets/reward-${state.outcome}.png" alt="${escapeHtml(out.item)}"><p class="result-tier">${escapeHtml(out.tier)}</p><h3>${escapeHtml(out.title)}</h3><p>${escapeHtml(out.description)}</p><p class="mini-meta">${state.decisions} decisions · ${formatDuration(state.completedAt-state.startedAt)}</p></div>`;
   } else if(panel==='share'){
-    body.innerHTML=`<p>Share your adventure and invite a friend to explore the forest.</p><button class="pixel-button" id="copy-share-link">COPY ADVENTURE LINK</button><p id="copy-share-status" class="mini-meta" aria-live="polite"></p>`;
+    const failed=state.outcome==='perished';
+    body.innerHTML=`<p>Share your adventure and invite a friend to explore the forest.</p><button class="pixel-button" id="copy-share-link">COPY ADVENTURE LINK</button><p id="copy-share-status" class="mini-meta" aria-live="polite"></p>${failed?'<div id="retry-panel" class="retry-panel" aria-live="polite"><p>Copy the link to begin your five-minute retry cooldown.</p><strong id="retry-clock">05:00</strong><button id="retry-button" class="secondary-button" disabled>TRY AGAIN</button></div>':''}`;
     $('copy-share-link').addEventListener('click',async()=>{
-      const url=location.href.split('?')[0].split('#')[0];
-      try { await navigator.clipboard.writeText(`I earned ${out.item} (${out.tier}) in The Autumn Castle! ${url}`); $('copy-share-status').textContent='Link copied!'; }
-      catch { $('copy-share-status').textContent=`Copy this link: ${url}`; }
+      const url=location.origin+location.pathname;
+      try { await navigator.clipboard.writeText(`I explored The Autumn Castle! ${url}`); $('copy-share-status').textContent='Link copied!'; }
+      catch { $('copy-share-status').textContent=`Clipboard unavailable. Copy this link: ${url}`; }
+      if(failed) window.adventureQuest.beginRetryCooldown();
     });
+    if(failed){
+      $('retry-button').addEventListener('click',()=>{
+        if(window.adventureQuest.retryRemaining()>0)return;
+        $('hub-modal').classList.add('hidden');
+        showScreen('home');
+        window.adventureQuest.clearPendingFailure();
+        transition(startGame);
+      });
+      window.adventureQuest.refreshRetryUI();
+    }
   } else if(panel==='inventory'){
-    const rewardKeys=['basic','medium','good','rare','legendary'];
-    body.innerHTML=`<p>November's collectible is shown below. Future editions will expand this grid.</p><div class="inventory-grid">${rewardKeys.map(k=>{
-      const item=EDITION.outcomes[k]; const unlocked=k===state.outcome;
-      return `<div class="inventory-tile ${unlocked?'unlocked':'locked'}"><span class="inventory-tier">${item.tier}</span>${unlocked?`<img src="assets/reward-${k}.png" alt="${escapeHtml(item.item)}">`:'<span class="inventory-lock" aria-label="Not collected">?</span>'}<span class="inventory-label">${unlocked?escapeHtml(item.item):'Not collected'}</span></div>`;
-    }).join('')}</div><p class="mini-meta">This run is a preview only. Rewards are NOT stored in your database yet.</p>`;
+    body.innerHTML='<p>Loading your saved collectibles…</p>';
+    window.adventureQuest.renderInventory(body);
   } else if(panel==='guild'){
     const tiers=['LEGENDARY','RARE','GOOD','MEDIUM','BASIC','BAD'];
     body.innerHTML=`<p><strong>Your guild:</strong> ${escapeHtml(out.tier)} · <strong>Adventurer:</strong> ${escapeHtml(state.user?.username||'Traveler')}</p><p>Your run: ${formatDuration(state.completedAt-state.startedAt)} · ${state.decisions} decisions</p><div class="guild-table"><div class="guild-row guild-head"><span>Guild</span><span>Members</span></div>${tiers.map(t=>`<div class="guild-row ${t===out.tier?'your-guild':''}"><span>${t}</span><span>${t===out.tier?'You (local)':'—'}</span></div>`).join('')}</div><p class="mini-meta">Official attempts and Guild rankings aren't enabled yet. Your time and tier above are just this browser's result.</p>`;
@@ -299,7 +315,11 @@ function showHubPanel(panel){
   }
 }
 // v1.1.1: restore missing start button event registration.
-$('start-btn').addEventListener('click', () => transition(startGame));
+$('start-btn').addEventListener('click', () => {
+  const remaining=window.adventureQuest?.retryRemaining()||0;
+  if(remaining>0){alert('You can retry after the countdown ends.');return;}
+  transition(startGame);
+});
 $('hub-close').addEventListener('click',()=> $('hub-modal').classList.add('hidden'));
 $('hub-open-menu').addEventListener('click',()=>showHubPanel('reward'));
 document.querySelectorAll('[data-hub-panel]').forEach(btn=>btn.addEventListener('click',()=>showHubPanel(btn.dataset.hubPanel)));

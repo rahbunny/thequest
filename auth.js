@@ -1,4 +1,4 @@
-/* Autumn Adventure v1.2: real Supabase Auth, no client-authoritative rewards. */
+/* Autumn Adventure v1.3: Supabase Auth plus verified pending reward recovery. */
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
@@ -31,7 +31,7 @@
     $('auth-mode-login').classList.toggle('active',mode==='login');
     $('auth-title').textContent=mode==='signup'?'Create an account':'Welcome back, Traveler';
     $('auth-description').textContent=mode==='signup'
-      ?'Sign up to keep your adventurer identity across newsletters. Official reward saving will come in a later update.'
+      ?'Sign up to keep your adventurer identity and claim the collectible from your completed quest.'
       :'Sign in with your registered email and password to use your adventurer identity.';
     $('username-label').classList.toggle('hidden',mode!=='signup');
     $('newsletter-label').classList.toggle('hidden',mode!=='signup');
@@ -87,10 +87,20 @@
         id:user.id
       } : null;
       if(user){
+        const claimed=await window.adventureQuest?.claimPending();
+        if(claimed){
+          // Return players to their saved result after an email-confirmation redirect.
+          if(!state.outcome){
+            state.outcome=claimed.outcome;
+            state.startedAt=Date.now();state.completedAt=Date.now();
+            state.user=auth.profileUser;
+            setTimeout(()=>{if($('screen-home').classList.contains('active'))openHub();},100);
+          }
+        }
         $('auth-header').textContent='· '+auth.profileUser.username;
         $('home-sign-in').classList.add('hidden');
         $('home-sign-out').classList.remove('hidden');
-        if(profile) homeStatus('Signed in as '+profile.username+'. Your account persists; reward saving is not enabled yet.');
+        if(profile && !claimed) homeStatus('Signed in as '+profile.username+'. Your completed quests can now be claimed and saved.');
       } else {
         $('auth-header').textContent='';
         $('home-sign-in').classList.remove('hidden');
@@ -125,7 +135,7 @@
           feedback('Account created and signed in. Your profile is now available.','success');
           setTimeout(()=>finishLogin(),550);
         }else{
-          feedback('Check your email for a confirmation link. After confirming, return to the game and sign in. Your current reward is NOT saved yet.','success');
+          feedback('Check your email for the confirmation link. This browser has kept your completed quest receipt; after confirming, your reward will be claimed automatically.','success');
           $('auth-guest').classList.toggle('hidden',returnScreen!=='hub');
         }
       } else {
@@ -169,7 +179,7 @@
       homeStatus('Account service could not load. The story still works, but sign-in requires an internet connection.');
       return;
     }
-    client=api.createClient(config.url,config.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    client=window.getAdventureClient();
     client.auth.onAuthStateChange(()=>{setTimeout(syncSession,0);});
     await syncSession();
     // Recovery emails lead back to the same page. User can sign in or reset.
