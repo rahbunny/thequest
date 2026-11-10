@@ -136,7 +136,7 @@ function ensureTravelerSprite(){
 async function startGame(){
   try{await window.adventureQuest.begin();}
   catch(err){alert('Cannot start the adventure right now: '+err.message);return;}
-  state.nodeId='start'; state.decisions=0; state.startedAt=Date.now(); state.completedAt=0; state.outcome=null; state.history=[];
+  state.nodeId='start'; state.decisions=0; state.startedAt=Date.now(); state.completedAt=0; state.outcome=null; state.history=[]; state.restoredCompletion=false;
   state.shadowRouteAvailable = window.adventureQuest.shadowEnabled;
   showNode();
 }
@@ -225,7 +225,7 @@ async function finish(outcome){
     const verified=await window.adventureQuest.finish(state.history);
     if(verified!==outcome) throw new Error('Server-verified outcome did not match the story.');
   }catch(err){alert('Your result could not be verified and saved yet: '+err.message);return;}
-  state.outcome=outcome; state.completedAt=Date.now();
+  state.outcome=outcome; state.restoredCompletion=false; state.completedAt=Date.now();
   // A short interlude BEFORE the 5-second prize reveal.
   showScreen('hub');
   $('hub-main').classList.add('hidden');
@@ -284,7 +284,7 @@ function showHubPanel(panel){
   const heading={reward:'QUEST COMPLETE',share:'SHARE YOUR STORY',inventory:'YOUR INVENTORY',guild:'THE GUILD HALL',map:'WORLD MAP'};
   $('hub-modal-heading').textContent=heading[panel]||'QUEST COMPLETE';
   if(panel==='reward'){
-    body.innerHTML=`<div class="hub-reward-display"><img src="assets/reward-${state.outcome}.png" alt="${escapeHtml(out.item)}"><p class="result-tier">${escapeHtml(out.tier)}</p><h3>${escapeHtml(out.title)}</h3><p>${escapeHtml(out.description)}</p><p class="mini-meta">${state.decisions} decisions · ${formatDuration(state.completedAt-state.startedAt)}</p></div>`;
+    body.innerHTML=`<div class="hub-reward-display"><img src="assets/reward-${state.outcome}.png" alt="${escapeHtml(out.item)}"><p class="result-tier">${escapeHtml(out.tier)}</p><h3>${escapeHtml(out.title)}</h3><p>${escapeHtml(out.description)}</p><p class="mini-meta">${state.restoredCompletion?'Autumn edition completed · Your reward is saved.':`${state.decisions} decisions · ${formatDuration(state.completedAt-state.startedAt)}`}</p></div>`;
   } else if(panel==='share'){
     const failed=state.outcome==='perished';
     body.innerHTML=`<p>Share your adventure and invite a friend to explore the forest.</p><button class="pixel-button" id="copy-share-link">COPY ADVENTURE LINK</button><p id="copy-share-status" class="mini-meta" aria-live="polite"></p>${failed?'<div id="retry-panel" class="retry-panel" aria-live="polite"><p>Copy the link to begin your five-minute retry cooldown.</p><strong id="retry-clock">05:00</strong><button id="retry-button" class="secondary-button" disabled>TRY AGAIN</button></div>':''}`;
@@ -320,7 +320,7 @@ function showHubPanel(panel){
     window.adventureQuest.renderInventory(body);
   } else if(panel==='guild'){
     const tiers=['LEGENDARY','RARE','GOOD','MEDIUM','BASIC','BAD'];
-    body.innerHTML=`<p><strong>Your guild:</strong> ${escapeHtml(out.tier)} · <strong>Adventurer:</strong> ${escapeHtml(state.user?.username||'Traveler')}</p><p>Your run: ${formatDuration(state.completedAt-state.startedAt)} · ${state.decisions} decisions</p><div class="guild-table"><div class="guild-row guild-head"><span>Guild</span><span>Members</span></div>${tiers.map(t=>`<div class="guild-row ${t===out.tier?'your-guild':''}"><span>${t}</span><span>${t===out.tier?'You (local)':'—'}</span></div>`).join('')}</div><p class="mini-meta">Official attempts and Guild rankings aren't enabled yet. Your time and tier above are just this browser's result.</p>`;
+    body.innerHTML=`<p><strong>Your guild:</strong> ${escapeHtml(out.tier)} · <strong>Adventurer:</strong> ${escapeHtml(state.user?.username||'Traveler')}</p><p>${state.restoredCompletion?'Autumn adventure completed — previously saved result.':`Your run: ${formatDuration(state.completedAt-state.startedAt)} · ${state.decisions} decisions`}</p><div class="guild-table"><div class="guild-row guild-head"><span>Guild</span><span>Members</span></div>${tiers.map(t=>`<div class="guild-row ${t===out.tier?'your-guild':''}"><span>${t}</span><span>${t===out.tier?'You (local)':'—'}</span></div>`).join('')}</div><p class="mini-meta">Official attempts and Guild rankings aren't enabled yet. Your time and tier above are just this browser's result.</p>`;
   } else if(panel==='map'){
     body.innerHTML=`<p>One adventure completed. More lands wait beyond the mist…</p><div class="world-map"><div class="map-region autumn"><span>🍂</span><strong>THE AUTUMN CASTLE</strong><small>DISCOVERED · EDITION 01</small></div><div class="map-region locked"><span>🔒</span><strong>THE FROSTBOUND NORTH</strong><small>COMING SOON</small></div><div class="map-region locked"><span>🔒</span><strong>THE UNKNOWN WILDS</strong><small>FUTURE QUEST</small></div><div class="map-region locked"><span>🔒</span><strong>UNMARKED TERRITORY</strong><small>FUTURE QUEST</small></div></div><p class="mini-meta">Future newsletter lands will unlock here; names and themes are placeholders.</p>`;
   }
@@ -333,6 +333,7 @@ $('start-btn').addEventListener('click', async () => {
   try {
     await window.adventureAuth.ensureAdventurer();
     const status=await window.adventureQuest.loadStatus();
+    if(status?.completed){window.adventureQuest.restoreCompletedRun(status);return;}
     if(status?.blocked){window.adventureQuest.restoreFailedRun(status);return;}
     transition(startGame);
   }catch(err){alert('Cannot enter the forest: '+err.message);}

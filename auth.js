@@ -69,7 +69,9 @@
   if(typeof state!=='undefined' && auth.profileUser)state.user=auth.profileUser;
   await window.adventureQuest.claimPending();
   const playerStatus=await window.adventureQuest.loadStatus().catch(e=>{console.error(e);return null;});
-  if(playerStatus?.blocked && typeof state!=='undefined' && !state.outcome){
+  if(playerStatus?.completed && typeof state!=='undefined' && !state.outcome){
+    window.adventureQuest.restoreCompletedRun(playerStatus);
+  }else if(playerStatus?.blocked && typeof state!=='undefined' && !state.outcome){
     window.adventureQuest.restoreFailedRun(playerStatus);
   }
   return user;

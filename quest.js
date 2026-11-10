@@ -7,7 +7,7 @@
   let client, run, retryDeadline = 0, copied = false, failedRun = null;
   const api = {
     shadowEnabled:false, begin, finish, claimPending, renderInventory,
-    copyFailedLink, retryRemaining, refreshRetryUI, loadStatus, restoreFailedRun,
+    copyFailedLink, retryRemaining, refreshRetryUI, loadStatus, restoreFailedRun, restoreCompletedRun,
     isBlocked: () => !!failedRun && (!copied || retryRemaining()>0),
     hasCopied: () => copied
   };
@@ -42,6 +42,21 @@
     syncFailed(data);
     return data;
   }
+  function restoreCompletedRun(data){
+    if(!data?.completed || !data.winning_outcome) return false;
+    if(typeof state==='undefined')return false;
+    state.outcome=data.winning_outcome;
+    state.restoredCompletion=true;
+    state.decisions=0;
+    state.startedAt=Date.now();
+    state.completedAt=state.startedAt;
+    state.user=window.adventureAuth?.profileUser || {username:'Traveler'};
+    if(typeof openHub==='function'){
+      openHub();
+      return true;
+    }
+    return false;
+  }
   function restoreFailedRun(data){
     if(data?.last_outcome!=='perished' || !data?.blocked)return false;
     if(typeof state==='undefined')return false;
@@ -58,6 +73,10 @@
     const {data:{user}}=await getClient().auth.getUser();
     if(!user)throw new Error('Choose your adventurer name first.');
     const status=await loadStatus();
+    if(status?.completed){
+      restoreCompletedRun(status);
+      throw new Error('This Autumn edition is already complete. Your prize is in your inventory.');
+    }
     if(status?.blocked){
       restoreFailedRun(status);
       throw new Error(copied?'Your five-minute retry timer is still running.':'Copy the adventure link before retrying.');
