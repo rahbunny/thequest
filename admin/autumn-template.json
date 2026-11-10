@@ -1,0 +1,302 @@
+{
+  "title": "The Autumn Castle",
+  "season": "autumn",
+  "start_node": "start",
+  "theme": {
+    "accent": "#c46b3c",
+    "background": "#171b22",
+    "map_label": "Autumn Castle",
+    "description": "A quiet forest. A distant castle. Every choice changes the path ahead.",
+    "scenes": {},
+    "characters": {}
+  },
+  "nodes": {
+    "start": {
+      "location": "THE FOREST FORK",
+      "title": "Three paths beneath the leaves",
+      "description": "The autumn forest parts before you. One trail is dim and overgrown, another glows in the afternoon light. Behind you, the road home is already fading.",
+      "choices": [
+        {
+          "label": "Take the shaded path",
+          "target": "shaded_path",
+          "shadow": false
+        },
+        {
+          "label": "Follow the bright path",
+          "target": "bright_path",
+          "shadow": false
+        },
+        {
+          "label": "Turn around and leave",
+          "target": "!perished",
+          "shadow": false
+        }
+      ]
+    },
+    "shaded_path": {
+      "location": "THE SHADED PATH",
+      "title": "A figure among the trees",
+      "description": "The light thins beneath the branches. Ahead, a gnoll stands in the path. You could approach, ignore him, or hurry toward the brighter trail.",
+      "choices": [
+        {
+          "label": "Approach the tree gnoll",
+          "target": "tree_gnoll",
+          "shadow": false
+        },
+        {
+          "label": "Ignore him and keep walking",
+          "target": "!perished",
+          "shadow": false
+        },
+        {
+          "label": "Dart away toward the bright path",
+          "target": "bright_path",
+          "shadow": false
+        }
+      ]
+    },
+    "tree_gnoll": {
+      "location": "THE GNOLL\u2019S CLEARING",
+      "title": "The gnoll blocks your way",
+      "description": "The gnoll watches you carefully. He offers a riddle, but there may be another way past him. (Some encounters are rarer than others.)",
+      "choices": [
+        {
+          "label": "Answer his riddle",
+          "target": "riddle_success",
+          "shadow": false
+        },
+        {
+          "label": "Give the wrong answer",
+          "target": "!perished",
+          "shadow": false
+        },
+        {
+          "label": "Fight the gnoll",
+          "target": "puppy_cave",
+          "shadow": true
+        }
+      ]
+    },
+    "riddle_success": {
+      "location": "BEYOND THE CLEARING",
+      "title": "The gnoll lets you pass",
+      "description": "Your answer satisfies the gnoll. He steps aside, revealing three possible destinations. But the cave is not what it seems...",
+      "choices": [
+        {
+          "label": "Head toward the castle",
+          "target": "castle",
+          "shadow": false
+        },
+        {
+          "label": "Follow the sound of water",
+          "target": "river",
+          "shadow": false
+        },
+        {
+          "label": "Enter the cave",
+          "target": "empty_cave",
+          "shadow": false
+        }
+      ]
+    },
+    "empty_cave": {
+      "location": "THE EMPTY CAVE",
+      "title": "Something stirs in the dark",
+      "description": "The cave is empty. Before you can turn back, another gnoll emerges from the shadows and crushes you beneath its weight.",
+      "ending": "perished",
+      "choices": []
+    },
+    "puppy_cave": {
+      "location": "THE HIDDEN CAVE",
+      "title": "A tiny chorus of whimpers",
+      "description": "You overcome the gnoll and discover a hidden den. A litter of puppies huddles together in the warm straw. What will you do?",
+      "choices": [
+        {
+          "label": "Rescue the puppies and take them with you",
+          "target": "!legendary",
+          "shadow": false
+        },
+        {
+          "label": "Leave them and continue onward",
+          "target": "after_puppies",
+          "shadow": false
+        },
+        {
+          "label": "Kill the puppies",
+          "target": "!perished",
+          "shadow": false
+        }
+      ]
+    },
+    "after_puppies": {
+      "location": "OUTSIDE THE CAVE",
+      "title": "The path continues",
+      "description": "You leave the puppies undisturbed and step back into the autumn air. The castle rises to one side, while the river winds through the trees on the other.",
+      "choices": [
+        {
+          "label": "Continue toward the castle",
+          "target": "castle",
+          "shadow": false
+        },
+        {
+          "label": "Make your way to the river",
+          "target": "river",
+          "shadow": false
+        }
+      ]
+    },
+    "bright_path": {
+      "location": "THE BRIGHT PATH",
+      "title": "Sunlight through the canopy",
+      "description": "The trees thin and golden light spills across the trail. You hear a river nearby and spot a strange plant growing beside the path.",
+      "choices": [
+        {
+          "label": "Dip your toes in the river",
+          "target": "river",
+          "shadow": false
+        },
+        {
+          "label": "Drink from the strange plant",
+          "target": "!perished",
+          "shadow": false
+        },
+        {
+          "label": "Bathe and follow the path onward",
+          "target": "bathing",
+          "shadow": false
+        }
+      ]
+    },
+    "bathing": {
+      "location": "THE CLEARING",
+      "title": "A place to catch your breath",
+      "description": "Refreshed, you reach a clearing where the castle road branches away from a dark stretch of forest.",
+      "choices": [
+        {
+          "label": "Head toward the castle",
+          "target": "castle",
+          "shadow": false
+        },
+        {
+          "label": "Wander back into the forest",
+          "target": "!perished",
+          "shadow": false
+        }
+      ]
+    },
+    "river": {
+      "location": "THE RIVERBANK",
+      "title": "The river\u2019s offerings",
+      "description": "Clear water runs over smooth stones. A glimmer catches your eye beneath the surface. Nearby, a fish struggles and a turtle has become caught on a hook.",
+      "choices": [
+        {
+          "label": "Reach for the shiny golden pebble",
+          "target": "!basic",
+          "shadow": false
+        },
+        {
+          "label": "Kick away the fish",
+          "target": "!perished",
+          "shadow": false
+        },
+        {
+          "label": "Help the hooked turtle",
+          "target": "!medium",
+          "shadow": false
+        }
+      ]
+    },
+    "castle": {
+      "location": "THE CASTLE",
+      "title": "The castle doors stand open",
+      "description": "You arrive at the castle. From within, you hear footsteps, clattering dishes, and the restless sounds of horses in the stables. Where will you go?",
+      "choices": [
+        {
+          "label": "Sneak into the throne room",
+          "target": "!perished",
+          "shadow": false
+        },
+        {
+          "label": "Scout the stables",
+          "target": "!rare",
+          "shadow": false
+        },
+        {
+          "label": "Raid the kitchen",
+          "target": "!good",
+          "shadow": false
+        }
+      ]
+    }
+  },
+  "outcomes": {
+    "perished": {
+      "tier": "BAD",
+      "title": "You have perished",
+      "description": "The forest has claimed another adventurer. Share the newsletter with a friend and return for another attempt after the cooldown.",
+      "item": "No item collected"
+    },
+    "basic": {
+      "tier": "BASIC",
+      "title": "Simple but sufficient",
+      "description": "A little treasure, found by keeping your eyes open. Simple, but sufficient.",
+      "item": "Golden Pebble"
+    },
+    "medium": {
+      "tier": "MEDIUM",
+      "title": "Well-deserved",
+      "description": "A kind choice brought you a well-earned keepsake from the river.",
+      "item": "Seashell"
+    },
+    "good": {
+      "tier": "GOOD",
+      "title": "Interesting!",
+      "description": "A sweet reward for a bold little castle raid.",
+      "item": "Cookies"
+    },
+    "rare": {
+      "tier": "RARE",
+      "title": "Unique!",
+      "description": "You found the stables and earned a remarkable companion.",
+      "item": "Horse"
+    },
+    "legendary": {
+      "tier": "LEGENDARY",
+      "title": "Holy smokes",
+      "description": "The secret shadow route led you to a litter of puppies. You rescued them and uncovered the legendary reward!",
+      "item": "Puppies"
+    }
+  },
+  "rewards": {
+    "basic": {
+      "name": "Golden Pebble",
+      "tier": "BASIC",
+      "image": "assets/reward-basic.png"
+    },
+    "medium": {
+      "name": "Seashell",
+      "tier": "MEDIUM",
+      "image": "assets/reward-medium.png"
+    },
+    "good": {
+      "name": "Cookies",
+      "tier": "GOOD",
+      "image": "assets/reward-good.png"
+    },
+    "rare": {
+      "name": "Horse",
+      "tier": "RARE",
+      "image": "assets/reward-rare.png"
+    },
+    "legendary": {
+      "name": "Puppies",
+      "tier": "LEGENDARY",
+      "image": "assets/reward-legendary.png"
+    }
+  },
+  "map": {
+    "label": "The Autumn Castle",
+    "description": "Unlocked: the first known region of the world",
+    "locked": false
+  }
+}
