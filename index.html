@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#171b22" />
-  <title>The Autumn Castle — Adventure v1.2 — Supabase Auth</title>
+  <title>The Autumn Castle — Adventure v1.4</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -28,7 +28,11 @@
           <p class="eyebrow">A BRANCHING ADVENTURE</p>
           <h1>The Autumn<br><em>Castle</em></h1>
           <p class="intro">A quiet forest. A distant castle. Every choice changes the path ahead.</p>
-          <button id="start-btn" class="pixel-button">ENTER THE FOREST <span>→</span></button><div class="home-auth-controls"><button id="home-sign-in" class="secondary-button" type="button">SIGN IN</button><button id="home-sign-out" class="secondary-button hidden" type="button">SIGN OUT</button></div><p id="home-auth-status" class="microcopy" aria-live="polite"></p>
+          <form id="username-prompt" class="username-prompt" autocomplete="off">
+            <label for="adventurer-name">What shall we call you, Traveler?</label>
+            <input id="adventurer-name" name="adventurer-name" placeholder="Your adventurer name" minlength="2" maxlength="20" required autocomplete="nickname" />
+          </form>
+          <button id="start-btn" class="pixel-button">ENTER THE FOREST <span>→</span></button><div class="home-auth-controls"><button id="home-sign-in" class="secondary-button" type="button">EXISTING ACCOUNT? SIGN IN</button><button id="home-sign-out" class="secondary-button hidden" type="button">SIGN OUT</button></div><p id="home-auth-status" class="microcopy" aria-live="polite"></p>
           <p class="microcopy">BEST EXPERIENCED WITH SOUND OFF AND CURIOSITY ON</p>
         </div>
         <div class="traveler-home-journey" aria-label="The robed traveler walks along the forest path, discovers a lantern, picks it up, and carries it onward" role="img"><div class="home-traveler-sprite"><div class="home-traveler-walk"></div><div class="home-traveler-idle"></div><div class="home-traveler-pickup"></div></div><div class="carried-lantern" aria-hidden="true"><span>✦</span></div></div>
@@ -63,21 +67,21 @@
         <div class="auth-switch" role="group" aria-label="Account mode"><button id="auth-mode-signup" class="tab active" type="button">CREATE ACCOUNT</button><button id="auth-mode-login" class="tab" type="button">SIGN IN</button></div>
         <form id="account-form">
           <label id="username-label">Username<input id="username" name="username" minlength="2" maxlength="20" autocomplete="nickname" placeholder="Choose an adventurer name" /></label>
-          <label>Email<input id="email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" /></label>
-          <label>Password<input id="password" name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters" /></label>
-          <label id="newsletter-label" class="consent"><input id="newsletter-optin" type="checkbox" /> <span>I'd like to receive future newsletter and game updates (preference not submitted yet).</span></label>
+          <label id="email-label">Email<input id="email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" /></label>
+          <label id="password-label">Password<input id="password" name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters" /></label>
+          <label id="newsletter-label" class="consent"><input id="newsletter-optin" type="checkbox" /> <span>I'd like to receive the newsletter and game updates. Optional — unsubscribe anytime.</span></label>
           <button id="auth-submit" class="pixel-button" type="submit">CREATE ACCOUNT <span>→</span></button>
         </form>
         <p id="auth-feedback" role="status" aria-live="polite" class="auth-feedback"></p>
-        <div class="auth-other"><button type="button" class="secondary-button" id="auth-forgot">RESET PASSWORD</button><button type="button" class="secondary-button" id="auth-back">BACK</button><button type="button" class="secondary-button hidden" id="auth-guest">VIEW CURRENT RESULT WITHOUT SAVING</button></div>
-        <p class="microcopy">Account passwords are handled by Supabase Auth. Rewards are verified by Supabase and claimed after email confirmation. Newsletter signup is not implemented yet.</p>
+        <div class="auth-other"><button type="button" class="secondary-button" id="auth-forgot">RESET PASSWORD</button><button type="button" class="secondary-button" id="auth-back">BACK</button><button type="button" class="secondary-button hidden" id="auth-guest">CONTINUE TO RESULT (SAVE ACCOUNT LATER)</button></div>
+        <p class="microcopy">Your quest is already saved in this browser’s player account. Verify an email, then set a password to keep your items across devices. Newsletter consent is optional and stored in Supabase.</p>
       </div>
     </section>
 
     <section id="screen-hub" class="screen hub-screen">
       <div class="hub-forest">
         <div class="hub-mist"></div>
-        <div class="hub-header"><span>EDITION 01 · THE AUTUMN CASTLE</span><button id="hub-open-menu" class="hub-small-button">OPEN RESULT</button></div>
+        <div class="hub-header"><span>EDITION 01 · THE AUTUMN CASTLE</span><div class="hub-header-actions"><button id="hub-account-action" class="hub-small-button">KEEP ACCOUNT / EMAIL</button><button id="hub-open-menu" class="hub-small-button">OPEN RESULT</button></div></div>
         <div id="fate-cutscene" class="fate-cutscene hidden" role="status"><div class="fate-lantern">✦</div><p>Interesting choices, Traveler…</p><h2>Let's see what you got.</h2></div>
         <div id="preview-card" class="preview-card hidden" role="status"><p>YOUR REWARD</p><img id="preview-art" src="assets/reward-basic.png" alt=""><span id="preview-tier">BASIC</span><h2 id="preview-title">Simple but sufficient</h2></div>
         <div id="hub-main" class="hub-main hidden">
@@ -95,7 +99,7 @@
     </section>
 
     <div id="transition" class="transition-overlay" aria-hidden="true"><div class="lantern">✦</div><p>THE LANTERN GUIDES THE WAY</p></div>
-    <footer class="footer"><span>A BRANCHING AUTUMN ADVENTURE</span><span>BUILD 1.3 — SAVED REWARDS</span></footer>
+    <footer class="footer"><span>A BRANCHING AUTUMN ADVENTURE</span><span>BUILD 1.4 — ADVENTURER IDENTITIES</span></footer>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="supabase-config.js"></script>

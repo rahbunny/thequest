@@ -248,12 +248,12 @@ function showRewardPreview(){
 }
 function showAccount(){
   $('preview-card').classList.add('hidden');
-  if(window.adventureAuth?.authenticated){
-    state.user=window.adventureAuth.profileUser;
-    openHub();
-    return;
+  state.user=window.adventureAuth?.profileUser || state.user;
+  if(window.adventureAuth?.anonymous && window.adventureAuth?.openAccount){
+    window.adventureAuth.openAccount('upgrade','hub');return;
   }
-  if(window.adventureAuth?.openAccount){ window.adventureAuth.openAccount('signup','hub'); return; }
+  if(window.adventureAuth?.authenticated){openHub();return;}
+  if(window.adventureAuth?.openAccount){window.adventureAuth.openAccount('login','hub');return;}
   showScreen('account');
 }
 // Authentication form handling is implemented in auth.js.
@@ -290,16 +290,27 @@ function showHubPanel(panel){
     body.innerHTML=`<p>Share your adventure and invite a friend to explore the forest.</p><button class="pixel-button" id="copy-share-link">COPY ADVENTURE LINK</button><p id="copy-share-status" class="mini-meta" aria-live="polite"></p>${failed?'<div id="retry-panel" class="retry-panel" aria-live="polite"><p>Copy the link to begin your five-minute retry cooldown.</p><strong id="retry-clock">05:00</strong><button id="retry-button" class="secondary-button" disabled>TRY AGAIN</button></div>':''}`;
     $('copy-share-link').addEventListener('click',async()=>{
       const url=location.origin+location.pathname;
-      try { await navigator.clipboard.writeText(`I explored The Autumn Castle! ${url}`); $('copy-share-status').textContent='Link copied!'; }
-      catch { $('copy-share-status').textContent=`Clipboard unavailable. Copy this link: ${url}`; }
-      if(failed) window.adventureQuest.beginRetryCooldown();
+      let copied=false;
+      try{
+        await navigator.clipboard.writeText(`I explored The Autumn Castle! ${url}`);
+        copied=true;
+      }catch(err){
+        // Do not mark the link as copied when the clipboard write failed.
+        $('copy-share-status').textContent=`Copy this link manually: ${url}. Use the button again after granting clipboard access.`;
+      }
+      if(!copied)return;
+      $('copy-share-status').textContent='Adventure link copied!';
+      if(failed){
+        try{await window.adventureQuest.copyFailedLink();}
+        catch(err){$('copy-share-status').textContent='Copied, but retry timer could not start: '+err.message;}
+      }
     });
     if(failed){
-      $('retry-button').addEventListener('click',()=>{
-        if(window.adventureQuest.retryRemaining()>0)return;
+      $('retry-button').addEventListener('click',async()=>{
+        if(window.adventureQuest.retryRemaining()>0 || !window.adventureQuest.hasCopied())return;
         $('hub-modal').classList.add('hidden');
         showScreen('home');
-        window.adventureQuest.clearPendingFailure();
+        // The Supabase RPC authorizes a new attempt; the countdown display is not the authority.
         transition(startGame);
       });
       window.adventureQuest.refreshRetryUI();
@@ -315,10 +326,17 @@ function showHubPanel(panel){
   }
 }
 // v1.1.1: restore missing start button event registration.
-$('start-btn').addEventListener('click', () => {
-  const remaining=window.adventureQuest?.retryRemaining()||0;
-  if(remaining>0){alert('You can retry after the countdown ends.');return;}
-  transition(startGame);
+$('start-btn').addEventListener('click', async () => {
+  const button=$('start-btn');
+  if(button.disabled)return;
+  button.disabled=true;
+  try {
+    await window.adventureAuth.ensureAdventurer();
+    const status=await window.adventureQuest.loadStatus();
+    if(status?.blocked){window.adventureQuest.restoreFailedRun(status);return;}
+    transition(startGame);
+  }catch(err){alert('Cannot enter the forest: '+err.message);}
+  finally{button.disabled=false;}
 });
 $('hub-close').addEventListener('click',()=> $('hub-modal').classList.add('hidden'));
 $('hub-open-menu').addEventListener('click',()=>showHubPanel('reward'));
