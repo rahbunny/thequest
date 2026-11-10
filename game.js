@@ -319,12 +319,57 @@ function showHubPanel(panel){
     body.innerHTML='<p>Loading your saved collectibles…</p>';
     window.adventureQuest.renderInventory(body);
   } else if(panel==='guild'){
-    const tiers=['LEGENDARY','RARE','GOOD','MEDIUM','BASIC','BAD'];
-    body.innerHTML=`<p><strong>Your guild:</strong> ${escapeHtml(out.tier)} · <strong>Adventurer:</strong> ${escapeHtml(state.user?.username||'Traveler')}</p><p>${state.restoredCompletion?'Autumn adventure completed — previously saved result.':`Your run: ${formatDuration(state.completedAt-state.startedAt)} · ${state.decisions} decisions`}</p><div class="guild-table"><div class="guild-row guild-head"><span>Guild</span><span>Members</span></div>${tiers.map(t=>`<div class="guild-row ${t===out.tier?'your-guild':''}"><span>${t}</span><span>${t===out.tier?'You (local)':'—'}</span></div>`).join('')}</div><p class="mini-meta">Official attempts and Guild rankings aren't enabled yet. Your time and tier above are just this browser's result.</p>`;
+    body.innerHTML=`<p class="mini-meta">Loading live Guild members…</p>`;
+    loadPublicGuild(body);
   } else if(panel==='map'){
     body.innerHTML=`<p>One adventure completed. More lands wait beyond the mist…</p><div class="world-map"><div class="map-region autumn"><span>🍂</span><strong>THE AUTUMN CASTLE</strong><small>DISCOVERED · EDITION 01</small></div><div class="map-region locked"><span>🔒</span><strong>THE FROSTBOUND NORTH</strong><small>COMING SOON</small></div><div class="map-region locked"><span>🔒</span><strong>THE UNKNOWN WILDS</strong><small>FUTURE QUEST</small></div><div class="map-region locked"><span>🔒</span><strong>UNMARKED TERRITORY</strong><small>FUTURE QUEST</small></div></div><p class="mini-meta">Future newsletter lands will unlock here; names and themes are placeholders.</p>`;
   }
 }
+// Guild data comes from a read-only, moderated Supabase function.
+// It never exposes email addresses or raw player IDs.
+let guildRequestCounter=0;
+async function loadPublicGuild(container, tier){
+  const request=++guildRequestCounter;
+  const knownTiers=['LEGENDARY','RARE','GOOD','MEDIUM','BASIC'];
+  const selected=knownTiers.includes(tier)?tier:(knownTiers.includes(EDITION.outcomes[state.outcome]?.tier)?EDITION.outcomes[state.outcome].tier:'BASIC');
+  try{
+    const client=window.getAdventureClient?.();
+    if(!client)throw new Error('Supabase is not connected');
+    const {data,error}=await client.rpc('quest_public_guild', {
+      p_edition_id:'autumn-01',p_tier:selected,p_limit:50
+    });
+    if(error)throw error;
+    if(request!==guildRequestCounter || $('hub-modal').dataset.panel!=='guild')return;
+    const guilds=Array.isArray(data?.guilds)?data.guilds:[];
+    const members=Array.isArray(data?.members)?data.members:[];
+    const yourTier=data?.your_guild || (state.outcome==='perished'?null:EDITION.outcomes[state.outcome]?.tier);
+    const guildButtons=guilds.map(g=>`<button type="button" class="guild-tier-button ${g.tier===selected?'selected':''}" data-guild-tier="${escapeHtml(g.tier)}" aria-pressed="${g.tier===selected}">${escapeHtml(g.tier)} <span>${Number(g.members)||0}</span></button>`).join('');
+    const displayRows=members.map(m=>`<div class="guild-member-row ${m.is_you?'your-guild':''}">
+      <span class="guild-rank">#${Number(m.rank)||'—'}</span>
+      <span class="guild-name">${escapeHtml(m.username||'Adventurer')}${m.is_you?' <small>(you)</small>':''}</span>
+      <span>${m.duration_ms==null?'—':formatDuration(m.duration_ms)}</span>
+      <span>${Number(m.attempts)||0}</span>
+    </div>`).join('');
+    container.innerHTML=`<p><strong>Your guild:</strong> ${escapeHtml(yourTier||'Not yet assigned')}${data?.your_rank?' · Rank #'+Number(data.your_rank):''}</p>
+      <p class="mini-meta">Select a Guild to see its adventurers. Ranked by fastest recorded successful run.</p>
+      <div class="guild-tier-options">${guildButtons}</div>
+      <div class="guild-member-grid" role="table" aria-label="${escapeHtml(selected)} Guild rankings">
+        <div class="guild-member-row guild-member-header" role="row"><span>Rank</span><span>Adventurer</span><span>Time</span><span>Attempts</span></div>
+        ${displayRows || '<p class="guild-empty">No visible members in this guild yet.</p>'}
+      </div>
+      <p class="mini-meta">Showing up to 50 members of the ${escapeHtml(selected)} Guild. Times and attempts are recorded by the game.</p>`;
+    container.querySelectorAll('[data-guild-tier]').forEach(button=>button.addEventListener('click',()=>{
+      container.innerHTML='<p class="mini-meta">Loading Guild members…</p>';
+      loadPublicGuild(container,button.dataset.guildTier);
+    }));
+  }catch(err){
+    if(request!==guildRequestCounter || $('hub-modal').dataset.panel!=='guild')return;
+    const message=String(err?.message||err);
+    container.innerHTML=`<p>Could not load the Guild Hall.</p><p class="mini-meta">${escapeHtml(message)}</p><button type="button" class="secondary-button" id="guild-retry">RETRY</button>`;
+    container.querySelector('#guild-retry')?.addEventListener('click',()=>loadPublicGuild(container,selected));
+  }
+}
+
 // v1.1.1: restore missing start button event registration.
 $('start-btn').addEventListener('click', async () => {
   const button=$('start-btn');
