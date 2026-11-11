@@ -9,18 +9,34 @@
  window.adventureAuth=auth;
  function feedback(s,kind=''){$('auth-feedback').textContent=s;$('auth-feedback').className='auth-feedback '+kind;}
  function status(s){$('home-auth-status').textContent=s;}
- function usernameMessage(message, isError=false){
-  const node=$('home-auth-status');
-  if(!node)return;
-  node.textContent=message;
-  node.setAttribute('role',isError?'alert':'status');
-  node.style.color=isError?'#ffd0a8':'';
+ function nameErrorNode(){
+  let node=$('username-error');
+  if(node)return node;
   const input=$('adventurer-name');
+  if(!input)return null;
+  node=document.createElement('p');
+  node.id='username-error';
+  node.setAttribute('role','alert');
+  node.setAttribute('aria-live','polite');
+  node.style.cssText='color:#ffd0a8;font-size:12px;line-height:1.6;margin:8px 0 0;';
+  input.insertAdjacentElement('afterend',node);
+  return node;
+ }
+ function usernameMessage(message,isError=false){
+  const input=$('adventurer-name');
+  const error=nameErrorNode();
+  if(error)error.textContent=isError?message:'';
   if(input){
    input.setAttribute('aria-invalid',String(isError));
-   if(isError){input.setAttribute('aria-describedby','home-auth-status');}
-   else{input.removeAttribute('aria-describedby');}
+   if(isError)input.setAttribute('aria-describedby','username-error');
+   else input.removeAttribute('aria-describedby');
   }
+  if(!isError){const label=$('home-auth-status');if(label)label.textContent=message;}
+ }
+ async function checkUsernameAvailable(name){
+  const {data,error}=await client.rpc('quest_username_available',{p_username:name});
+  if(error)throw new Error('Could not check username availability: '+error.message);
+  if(data!==true)throw inlineNameError('That username is already taken. Please choose another.');
  }
  function isUsernameTaken(error){
   const message=String(error?.message||'');
@@ -102,32 +118,52 @@
  }
  async function ensureAdventurer(){
   if(busy)throw new Error('Account setup is already in progress.');
-  const {data:{user:existing}}=await client.auth.getUser();
-  if(existing){if(!auth.profileUser)await syncSession();return existing;}
   const name=$('adventurer-name').value.trim();
-  usernameMessage('Checking adventurer name…');
+  const {data:{user:existing},error:sessionError}=await client.auth.getUser();
+  if(sessionError && !/session missing|auth session missing/i.test(sessionError.message||''))throw sessionError;
+  // Registered players or healthy anonymous profiles can continue as before.
+  if(existing){
+   if(!auth.profileUser)await syncSession();
+   if(profile)return existing;
+   // Recover an anonymous identity created by an older, interrupted attempt.
+   if(!existing.is_anonymous)throw new Error('Your account needs a profile. Please contact the administrator.');
+   if(!/^[A-Za-z0-9_ -]{2,20}$/.test(name))throw inlineNameError('Choose a name of 2–20 letters, numbers, spaces, underscores or hyphens.');
+   try{
+    await checkUsernameAvailable(name);
+    profile=await ensureProfile(existing,name);
+    await syncSession();
+    return existing;
+   }catch(err){
+    if(isUsernameTaken(err))throw inlineNameError('That username is already taken. Please choose another.');
+    throw err;
+   }
+  }
   if(!/^[A-Za-z0-9_ -]{2,20}$/.test(name))throw inlineNameError('Choose a name of 2–20 letters, numbers, spaces, underscores or hyphens.');
   busy=true;
+  usernameMessage('Checking adventurer name…');
+  let createdNewUser=false;
   try{
+   // Check before creating a session: avoids the duplicate-name reset/glitch.
+   await checkUsernameAvailable(name);
    const {data,error}=await client.auth.signInAnonymously({options:{data:{username:name}}});
    if(error)throw error;
+   createdNewUser=true;
+   // A unique constraint still protects against races between simultaneous players.
+   profile=await ensureProfile(data.user,name);
    localStorage.setItem('thequest_name_v14',name);
-   // Check profile creation explicitly: syncSession deliberately handles errors for returning users.
-   // New usernames must fail closed rather than accidentally starting an unregistered guest.
-   await ensureProfile(data.user,name);
    await syncSession();
    if(!profile)throw new Error('Could not finish creating your adventurer. Please try again.');
    usernameMessage(`Welcome, ${profile.username}!`);
    return data.user;
   }catch(err){
-   // A duplicate username must not strand the user in a nameless anonymous account.
-   await client.auth.signOut().catch(()=>{});
-   localStorage.removeItem('thequest_name_v14');
-   user=null;profile=null;
-   await syncSession().catch(()=>{});
-   // Show name conflicts in the page instead of a blocking browser alert.
-   if(isUsernameTaken(err))throw inlineNameError('That username is already taken. Please choose another.');
+   if(createdNewUser){
+    try{await client.auth.signOut()}catch(e){console.warn('Could not end unsuccessful anonymous signup:',e)}
+    localStorage.removeItem('thequest_name_v14');
+    user=null;profile=null;
+    await syncSession().catch(console.error);
+   }
    if(err?.inlineHandled)throw err;
+   if(isUsernameTaken(err))throw inlineNameError('That username is already taken. Please choose another.');
    usernameMessage('Could not create your adventurer. '+(err?.message||'Please try again.'),true);
    const handled=new Error(err?.message||'Could not create your adventurer.');
    handled.inlineHandled=true;
@@ -208,8 +244,7 @@
    if(pending?.uid===user.id){openAccount('password',state.outcome?'hub':'home');}
   }
   $('adventurer-name')?.addEventListener('input',()=>{
-   const node=$('home-auth-status');
-   if(node?.getAttribute('role')==='alert')usernameMessage('Choose a username to start—no email required.');
+   usernameMessage('Choose a username to start—no email required.');
   });
   $('home-sign-in').addEventListener('click',()=>openAccount('login','home'));
   $('home-sign-out').addEventListener('click',signOut);
