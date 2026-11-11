@@ -208,6 +208,30 @@ function transition(callback){
   // Hold the lantern wipe for about one second longer than the first prototype.
   setTimeout(()=>{ callback(); setTimeout(()=>layer.classList.remove('show'),420); },2000);
 }
+
+function ensurePerishOverlay(){
+  let overlay=$('perish-overlay');
+  if(overlay) return overlay;
+  overlay=document.createElement('div');
+  overlay.id='perish-overlay';
+  overlay.className='perish-overlay';
+  overlay.innerHTML='<div class="perish-overlay-inner"><p>THE FOREST CLOSES IN</p><h2>YOU PERISHED</h2></div>';
+  document.body.appendChild(overlay);
+  return overlay;
+}
+async function playPerishScene(){
+  const overlay=ensurePerishOverlay();
+  const shell=document.querySelector('.game-shell');
+  const questionScreen=$('screen-question');
+  showScreen('question');
+  if(questionScreen) questionScreen.classList.add('death-scene-active');
+  shell?.classList.add('shake-death');
+  overlay.classList.add('show');
+  await new Promise(resolve=>setTimeout(resolve,1700));
+  shell?.classList.remove('shake-death');
+  if(questionScreen) questionScreen.classList.remove('death-scene-active');
+  overlay.classList.remove('show');
+}
 function ensureTravelerSprite(){
   const traveler = $('traveler');
   if(!traveler) return null;
@@ -290,7 +314,8 @@ function showNode(){
   choices.forEach((answer,i)=>{
     const button=document.createElement('button');
     button.className='answer-button answer-enter';
-    button.style.animationDelay=`${i*140}ms`;
+    button.style.animationDelay=`${220 + i*180}ms`;
+    button.style.animationDuration='700ms';
     button.textContent=`${String.fromCharCode(65+i)}. ${answer.label}`;
     button.addEventListener('click',()=>chooseAnswer(answer));
     answers.appendChild(button);
@@ -547,7 +572,7 @@ $('start-btn').addEventListener('click', async () => {
     if(status?.completed){window.adventureQuest.restoreCompletedRun(status);return;}
     if(status?.blocked){window.adventureQuest.restoreFailedRun(status);return;}
     transition(startGame);
-  }catch(err){if(!err?.inlineHandled)alert('Cannot enter the forest: '+err.message);}
+  }catch(err){alert('Cannot enter the forest: '+err.message);}
   finally{button.disabled=false;}
 });
 $('hub-close').addEventListener('click',()=> $('hub-modal').classList.add('hidden'));
