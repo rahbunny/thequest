@@ -81,6 +81,14 @@
   const {data:found,error:e}=await client.from('profiles').select('id,username').eq('id',current.id).maybeSingle();
   if(e)throw e;
   if(found)return found;
+  // Returning email accounts must recover their SAME Supabase user ID, not create
+  // a new anonymous account or inherit a name left in another browser session.
+  if(!current.is_anonymous){
+   const {data:recovered,error:recoverError}=await client.rpc('quest_restore_my_profile');
+   if(recoverError)throw new Error('Could not restore the returning account profile: '+recoverError.message);
+   if(!recovered?.id||recovered.id!==current.id)throw new Error('Account profile recovery did not match the signed-in player.');
+   return {id:recovered.id,username:recovered.username};
+  }
   const name=(preferred||current.user_metadata?.username||`Traveler_${current.id.slice(0,6)}`).trim();
   const {data,error}=await client.from('profiles').insert({id:current.id,username:name}).select('id,username').single();
   if(error)throw error;
@@ -126,7 +134,7 @@
    if(!auth.profileUser)await syncSession();
    if(profile)return existing;
    // Recover an anonymous identity created by an older, interrupted attempt.
-   if(!existing.is_anonymous)throw new Error('Your account needs a profile. Please contact the administrator.');
+   if(!existing.is_anonymous)throw new Error('Your account profile could not be restored. Please sign out and sign in again, or contact the administrator.');
    if(!/^[A-Za-z0-9_ -]{2,20}$/.test(name))throw inlineNameError('Choose a name of 2–20 letters, numbers, spaces, underscores or hyphens.');
    try{
     await checkUsernameAvailable(name);
