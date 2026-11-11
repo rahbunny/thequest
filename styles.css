@@ -371,3 +371,49 @@
 .guild-pagination .mini-meta{margin:4px 0}
 .guild-share-fallback{display:block;width:100%;margin-top:9px;padding:9px;border:2px solid #bca681;min-height:70px;font:11px/1.5 'Space Mono',monospace;color:#352d28;background:#fff7e9}
 @media(max-width:650px){.guild-your-standing,.guild-pagination{align-items:stretch;flex-direction:column}.guild-your-standing .secondary-button,.guild-pagination .secondary-button{width:100%}}
+
+/* Quest Studio scene characters: restore consistent sprite size and placement.
+   Without these rules, published creatures display at their full image dimensions. */
+.game-scene .studio-scene-cast {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+}
+.game-scene .studio-scene-cast .studio-creature {
+  position: absolute;
+  display: block;
+  bottom: 17px;
+  width: 105px;
+  height: 110px;
+  max-width: 30%;
+  max-height: 80%;
+  object-fit: contain;
+  object-position: center bottom;
+  image-rendering: pixelated;
+  filter: drop-shadow(2px 3px 2px #07141b99);
+  transform-origin: center bottom;
+}
+.game-scene .studio-creature.creature-idle,
+.game-scene .studio-creature.creature-menace { animation: studioBreath 2.9s ease-in-out infinite; }
+.game-scene .studio-creature.creature-bounce { animation: studioBounce 1.8s steps(2) infinite; }
+.game-scene .studio-creature.creature-peek {
+  width: 38px;
+  height: 35px;
+  bottom: 28px;
+  animation: studioPeek 7s ease-in-out infinite;
+}
+@keyframes studioBreath { 50% { translate: 0 -2px; } }
+@keyframes studioBounce { 50% { translate: 0 -5px; } }
+@keyframes studioPeek {
+  0%,13%,75%,100% { opacity: 0; translate: 28px 0; }
+  24%,54% { opacity: 1; translate: 0 0; }
+}
+@media (max-width:650px) {
+  .game-scene .studio-scene-cast .studio-creature { width: 82px; height: 92px; bottom: 14px; max-width: 27%; }
+  .game-scene .studio-scene-cast .studio-creature.creature-peek { width: 30px; height: 30px; bottom: 23px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-scene .studio-scene-cast .studio-creature { animation: none !important; }
+}
