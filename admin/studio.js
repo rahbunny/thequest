@@ -67,7 +67,20 @@ else config=current||blank(entries.find(x=>x.id===edition)?.title||edition,entri
 config.theme ||= {};config.theme.scenes ||= {};config.theme.characters ||= {};config.theme.palette ||= clone(AUTUMN_PALETTE);
 config.appearance ||= clone(DEFAULT_APPEARANCE);
 ensureCopy();ensureCast();dirty=filled;nodeKey=Object.keys(config.nodes)[0]||'';
-say(filled?'● Missing Autumn defaults loaded — click Save Draft to keep them':data?.approved_at?'✓ Draft loaded (reviewed snapshot available)':'Draft loaded — not yet approved');render();}
+say(filled?'● Missing Autumn defaults loaded — click Save Draft to keep them':data?.approved_at?'✓ Draft loaded (reviewed snapshot available). Checking live publication…':'Draft loaded — not yet approved');render();
+ // The draft status is NOT the publishing status. Check live publication separately.
+ try {
+  const {data:live,error:liveError}=await db.rpc('quest_get_live_edition');
+  if(liveError)throw liveError;
+  if(!live || live.edition_id!==edition){
+    say(`● ${config.title} is NOT published. ${data?.approved_at?'Approved draft is ready. Click Publish Edition, then check the result here.':'Approve content before publishing.'}`);
+  } else {
+    say(`✓ LIVE: ${config.title} — release ${live.release_version} published ${new Date(live.published_at).toLocaleString()}`);
+  }
+ } catch(e) {
+  say(`Draft loaded. Live publication check failed: ${e.message}`,true);
+ }
+}
 function render(){if(!config)return;const t=config.theme||={};$('edition-title').value=config.title||'';$('edition-season').value=config.season||'other';$('accent-color').value=/^#[0-9a-fA-F]{6}$/.test(t.accent)?t.accent:'#c46b3c';$('background-color').value=/^#[0-9a-fA-F]{6}$/.test(t.background)?t.background:'#171b22';$('edition-description').value=t.description||'';renderNodePickers();renderNode();renderCopy();renderRewards();renderArt();renderMap();renderPalette();renderAppearance();renderCast();if(tab==='guild')loadGuild();if(tab==='preview')renderPreviewOpening();}
 function renderNodePickers(){for(const id of ['node-picker','start-node','art-scene']){const select=$(id),previous=id==='node-picker'?nodeKey:id==='start-node'?config.start_node:select.value;select.innerHTML='';for(const [key,node] of Object.entries(config.nodes)){const o=document.createElement('option');o.value=key;o.textContent=`${node.title||key} (${key})`;select.append(o);}select.value=previous;if(!select.value&&select.options.length)select.selectedIndex=0;}nodeKey=$('node-picker').value;}
 function renderNode(){const node=config.nodes[nodeKey];if(!node)return;$('node-location').value=node.location||'';$('node-title').value=node.title||'';$('node-description').value=node.description||'';$('node-ending').value=node.ending||'';const p=node.presentation||={};$('node-background').value=p.background||config.theme.scenes?.[nodeKey]||'';
@@ -238,14 +251,29 @@ async function publishEdition(){
  if(dirty)throw Error('Save and Approve Content before publishing.');
  const id=edition;
  const acknowledgement=prompt(`PUBLIC RELEASE: ${config.title} (${id}).\nThis will replace the active quest for new players and enable REAL prizes. Type PUBLISH to confirm:`);
- if(acknowledgement!=='PUBLISH')return;
+ if(acknowledgement!=='PUBLISH'){
+  say('Publication cancelled. No public changes were made.');
+  return;
+ }
  $('publish-edition').disabled=true;
- say('Checking approved version and publishing…');
+ say('Publishing approved edition to Supabase…');
  try{
-  const {data,error}=await db.rpc('quest_publish_edition',{p_edition_id:id});
-  if(error)throw error;
-  say(`✓ Published ${data.title} (release ${data.release_version}). New players now see this edition.`);
-  await loadEditions(id);
+  const {data,error,status}=await db.rpc('quest_publish_edition',{p_edition_id:id});
+  if(error)throw Error(`Publish failed (${error.code||status||'unknown'}): ${error.message}${error.details?' — '+error.details:''}${error.hint?' — '+error.hint:''}`);
+  if(!data?.release_version)throw Error('Publishing returned no release number. Publication is not verified.');
+  // Verify that the public read endpoint actually returns this edition and release.
+  const {data:live,error:readError}=await db.rpc('quest_get_live_edition');
+  if(readError)throw Error(`Publish response received, but verification failed: ${readError.message}`);
+  if(live?.edition_id!==id || Number(live.release_version)!==Number(data.release_version)){
+    throw Error(`Publish response received, but public endpoint does not show ${id} release ${data.release_version}. Do NOT consider it published.`);
+  }
+  dirty=false;
+  say(`✓ VERIFIED LIVE: ${data.title} — release ${data.release_version}, ${new Date(live.published_at).toLocaleString()}.`);
+  // Intentionally do not reload the draft, which previously erased this message.
+ }catch(e){
+  console.error('Quest Studio publish failed',e);
+  say('✕ '+e.message,true);
+  alert('Quest Studio could not verify publication.\n\n'+e.message+'\n\nYour approved draft is unchanged.');
  }finally{$('publish-edition').disabled=false;}
 }
 function bind(){on('edition-picker','change',()=>loadEdition($('edition-picker').value).catch(err=>alert(err.message)));on('new-edition','click',()=>createEdition().catch(err=>alert(err.message)));on('import-autumn','click',()=>importAutumn().catch(err=>alert(err.message)));on('save-draft','click',()=>saveDraft().catch(err=>say(err.message,true)));on('publish-edition','click',()=>publishEdition().catch(err=>say(err.message,true)));on('preview-full-game','click',()=>{if(dirty)return alert('Save Draft first, so the full-page preview can load your changes.');window.open('../?preview_edition='+encodeURIComponent(edition),'_blank','noopener');});on('add-cast','click',addCastCharacter);on('remove-cast','click',removeCastCharacter);on('approve-draft','click',()=>{if(confirm('Approve this editorial snapshot? Review before clicking Publish to make it live.'))saveDraft(true).catch(err=>say(err.message,true));});document.querySelectorAll('.tabs button').forEach(el=>el.addEventListener('click',()=>switchTab(el.dataset.tab)));dataField('edition-title',v=>config.title=v);dataField('edition-season',v=>config.season=v,'change');dataField('accent-color',v=>config.theme.accent=v);dataField('background-color',v=>config.theme.background=v);dataField('edition-description',v=>config.theme.description=v);dataField('squirrel-chance',v=>{if(v==='')return;const n=Number(v);if(n>=0&&n<=100){config.appearance.squirrel_chance=n/100;if(config.cast?.squirrel)config.cast.squirrel.chance=n/100;}});dataField('shadow-chance',v=>{if(v==='')return;const n=Number(v);if(n>=0&&n<=100)config.appearance.shadow_fight_chance=n/100;});dataField('start-node',v=>config.start_node=v,'change');on('node-picker','change',()=>{nodeKey=$('node-picker').value;renderNode();});dataField('node-location',v=>config.nodes[nodeKey].location=v);dataField('node-title',v=>config.nodes[nodeKey].title=v);dataField('node-description',v=>config.nodes[nodeKey].description=v);dataField('node-ending',v=>{if(v)config.nodes[nodeKey].ending=v;else delete config.nodes[nodeKey].ending;},'change');dataField('node-background',v=>{const node=config.nodes[nodeKey];node.presentation ||= {};node.presentation.background=v;config.theme.scenes[nodeKey]=v;});dataField('node-motion',v=>{config.nodes[nodeKey].presentation ||= {};config.nodes[nodeKey].presentation.traveler_motion=v;},'change');
