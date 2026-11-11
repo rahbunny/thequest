@@ -346,3 +346,28 @@
 .perish-overlay-inner{padding:24px 28px;text-align:center;color:#f7ead4}
 .perish-overlay-inner p{margin:0 0 14px;font-size:11px;letter-spacing:2px;color:#c28b67;font-family:'Space Mono',monospace}
 .perish-overlay-inner h2{margin:0;font-family:'Press Start 2P',monospace;font-size:clamp(20px,4vw,34px);line-height:1.5;color:#fff3e0;text-shadow:0 0 18px rgba(255,255,255,.15), 3px 3px 0 #3a2420}
+
+
+/* v1.4.2: real Guild Hall */
+.guild-tier-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:15px 0}
+.guild-tier-button{padding:10px 8px;cursor:pointer;border:2px solid #a9977d;background:#eee1c9;color:#42382e;font:10px 'Space Mono',monospace;display:flex;justify-content:space-between;gap:6px;align-items:center}
+.guild-tier-button.selected{background:#4b5149;color:#fff0d8;border-color:#4b5149}
+.guild-tier-button:focus-visible{outline:3px solid #c46b3c;outline-offset:2px}
+.guild-member-grid{border:2px solid #a9977d;overflow-x:auto;margin-bottom:10px}
+.guild-member-row{display:grid;grid-template-columns:54px minmax(110px,1fr) 83px 78px;gap:7px;align-items:center;padding:10px;border-bottom:1px solid #cab99f;font-size:11px;min-width:350px}
+.guild-member-row:last-child{border-bottom:0}
+.guild-member-header{font-size:10px;font-weight:bold;background:#d9c5a2}
+.guild-member-row.your-guild{background:#efdba9;font-weight:bold}
+.guild-name{overflow-wrap:anywhere}
+.guild-name small{font-weight:normal;color:#846040}
+.guild-empty{padding:14px;margin:0;color:#74614f;font-size:12px}
+@media(max-width:650px){.guild-tier-options{grid-template-columns:repeat(2,minmax(0,1fr))}.guild-member-row{font-size:10px}}
+
+/* v1.4.3 — Guild Hall paging and rank sharing */
+.guild-your-standing{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#f8ebd2;border:2px solid #bca681;padding:12px;margin-bottom:7px}
+.guild-your-standing p{margin:4px 0 0;font-size:12px}
+.guild-your-standing .secondary-button,.guild-pagination .secondary-button{font-size:9px;padding:11px 13px}
+.guild-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:8px 0}
+.guild-pagination .mini-meta{margin:4px 0}
+.guild-share-fallback{display:block;width:100%;margin-top:9px;padding:9px;border:2px solid #bca681;min-height:70px;font:11px/1.5 'Space Mono',monospace;color:#352d28;background:#fff7e9}
+@media(max-width:650px){.guild-your-standing,.guild-pagination{align-items:stretch;flex-direction:column}.guild-your-standing .secondary-button,.guild-pagination .secondary-button{width:100%}}
