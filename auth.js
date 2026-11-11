@@ -9,6 +9,30 @@
  window.adventureAuth=auth;
  function feedback(s,kind=''){$('auth-feedback').textContent=s;$('auth-feedback').className='auth-feedback '+kind;}
  function status(s){$('home-auth-status').textContent=s;}
+ function usernameMessage(message, isError=false){
+  const node=$('home-auth-status');
+  if(!node)return;
+  node.textContent=message;
+  node.setAttribute('role',isError?'alert':'status');
+  node.style.color=isError?'#ffd0a8':'';
+  const input=$('adventurer-name');
+  if(input){
+   input.setAttribute('aria-invalid',String(isError));
+   if(isError){input.setAttribute('aria-describedby','home-auth-status');}
+   else{input.removeAttribute('aria-describedby');}
+  }
+ }
+ function isUsernameTaken(error){
+  const message=String(error?.message||'');
+  return error?.code==='23505' || /duplicate key.*username|username.*(already exists|already taken|unique)|profiles_username_lower_unique/i.test(message);
+ }
+ function inlineNameError(message){
+  usernameMessage(message,true);
+  $('adventurer-name')?.focus();
+  const error=new Error(message);
+  error.inlineHandled=true;
+  return error;
+ }
  function setView(next){
   view=next;
   const upgrading=(next==='upgrade'),password=(next==='password'),login=(next==='login'),manage=(next==='manage');
@@ -81,14 +105,19 @@
   const {data:{user:existing}}=await client.auth.getUser();
   if(existing){if(!auth.profileUser)await syncSession();return existing;}
   const name=$('adventurer-name').value.trim();
-  if(!/^[A-Za-z0-9_ -]{2,20}$/.test(name))throw new Error('Choose a name of 2–20 letters, numbers, spaces, underscores or hyphens.');
+  usernameMessage('Checking adventurer name…');
+  if(!/^[A-Za-z0-9_ -]{2,20}$/.test(name))throw inlineNameError('Choose a name of 2–20 letters, numbers, spaces, underscores or hyphens.');
   busy=true;
   try{
    const {data,error}=await client.auth.signInAnonymously({options:{data:{username:name}}});
    if(error)throw error;
    localStorage.setItem('thequest_name_v14',name);
+   // Check profile creation explicitly: syncSession deliberately handles errors for returning users.
+   // New usernames must fail closed rather than accidentally starting an unregistered guest.
+   await ensureProfile(data.user,name);
    await syncSession();
-   if(!profile)throw new Error('The username could not be registered. Please choose a different name.');
+   if(!profile)throw new Error('Could not finish creating your adventurer. Please try again.');
+   usernameMessage(`Welcome, ${profile.username}!`);
    return data.user;
   }catch(err){
    // A duplicate username must not strand the user in a nameless anonymous account.
@@ -96,7 +125,13 @@
    localStorage.removeItem('thequest_name_v14');
    user=null;profile=null;
    await syncSession().catch(()=>{});
-   throw err;
+   // Show name conflicts in the page instead of a blocking browser alert.
+   if(isUsernameTaken(err))throw inlineNameError('That username is already taken. Please choose another.');
+   if(err?.inlineHandled)throw err;
+   usernameMessage('Could not create your adventurer. '+(err?.message||'Please try again.'),true);
+   const handled=new Error(err?.message||'Could not create your adventurer.');
+   handled.inlineHandled=true;
+   throw handled;
   }finally{busy=false;}
  }
  async function applyConsent(value){
@@ -172,6 +207,10 @@
    let pending=null;try{pending=JSON.parse(localStorage.getItem(pendingConsent)||'null')}catch{}
    if(pending?.uid===user.id){openAccount('password',state.outcome?'hub':'home');}
   }
+  $('adventurer-name')?.addEventListener('input',()=>{
+   const node=$('home-auth-status');
+   if(node?.getAttribute('role')==='alert')usernameMessage('Choose a username to start—no email required.');
+  });
   $('home-sign-in').addEventListener('click',()=>openAccount('login','home'));
   $('home-sign-out').addEventListener('click',signOut);
   $('auth-back').addEventListener('click',finishLogin);

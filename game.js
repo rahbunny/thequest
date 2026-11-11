@@ -547,7 +547,7 @@ $('start-btn').addEventListener('click', async () => {
     if(status?.completed){window.adventureQuest.restoreCompletedRun(status);return;}
     if(status?.blocked){window.adventureQuest.restoreFailedRun(status);return;}
     transition(startGame);
-  }catch(err){alert('Cannot enter the forest: '+err.message);}
+  }catch(err){if(!err?.inlineHandled)alert('Cannot enter the forest: '+err.message);}
   finally{button.disabled=false;}
 });
 $('hub-close').addEventListener('click',()=> $('hub-modal').classList.add('hidden'));
