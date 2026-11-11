@@ -561,6 +561,13 @@ async function loadPublicGuild(container, tier, limit=GUILD_PAGE_SIZE){
   }
 }
 
+// Prevent native form submission from refreshing the page when Enter is pressed.
+const usernamePrompt=$('username-prompt');
+if(usernamePrompt) usernamePrompt.addEventListener('submit',event=>{
+  event.preventDefault();
+  $('start-btn')?.click();
+});
+
 // v1.1.1: restore missing start button event registration.
 $('start-btn').addEventListener('click', async () => {
   const button=$('start-btn');
@@ -572,7 +579,7 @@ $('start-btn').addEventListener('click', async () => {
     if(status?.completed){window.adventureQuest.restoreCompletedRun(status);return;}
     if(status?.blocked){window.adventureQuest.restoreFailedRun(status);return;}
     transition(startGame);
-  }catch(err){alert('Cannot enter the forest: '+err.message);}
+  }catch(err){if(!err?.inlineHandled)alert('Cannot enter the forest: '+err.message);}
   finally{button.disabled=false;}
 });
 $('hub-close').addEventListener('click',()=> $('hub-modal').classList.add('hidden'));
