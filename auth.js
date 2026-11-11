@@ -165,6 +165,7 @@
      if(user&&!user.is_anonymous&&localStorage.getItem(pendingConsent))openAccount('password','hub');
     }).catch(console.error);
   },0));
+  await window.adventureQuest.loadActiveEdition();
   await syncSession();
   // On return from verified email change, preserve the anonymous user's ID.
   if(user && !user.is_anonymous){

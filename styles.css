@@ -341,3 +341,24 @@
 .guild-pagination .mini-meta{margin:4px 0}
 .guild-share-fallback{display:block;width:100%;margin-top:9px;padding:9px;border:2px solid #bca681;min-height:70px;font:11px/1.5 'Space Mono',monospace;color:#352d28;background:#fff7e9}
 @media(max-width:650px){.guild-your-standing,.guild-pagination{align-items:stretch;flex-direction:column}.guild-your-standing .secondary-button,.guild-pagination .secondary-button{width:100%}}
+
+/* v1.5: published Quest Studio character art (no change to legacy game) */
+.studio-scene-cast{position:absolute;inset:0;z-index:5;pointer-events:none}
+.studio-creature{position:absolute;bottom:17px;height:110px;width:105px;object-fit:contain;image-rendering:pixelated;filter:drop-shadow(2px 3px 2px #07141b99)}
+.studio-creature.creature-peek{height:35px;width:38px;animation:studioPeek 7s ease-in-out infinite}
+.studio-creature.creature-bounce{animation:studioBounce 1.8s steps(2) infinite}
+.studio-creature.creature-idle,.studio-creature.creature-menace{animation:studioBreath 2.9s ease-in-out infinite}
+@keyframes studioPeek{0%,13%,75%,100%{opacity:0;translate:28px 0}24%,54%{opacity:1;translate:0 0}}
+@keyframes studioBounce{50%{translate:0 -5px}}
+@keyframes studioBreath{50%{translate:0 -2px}}
+.studio-live-edition .scene-home{background-image:var(--studio-home-backdrop,none),linear-gradient(180deg,#202b37 0%,#34404a 46%,#6c5748 100%);background-size:cover}
+.studio-live-edition .game-scene .traveler .traveler-sprite{background-image:var(--studio-traveler,url('assets/traveler-idle.png'))}
+@media(prefers-reduced-motion:reduce){.studio-creature{animation:none!important}}
+
+/* Custom recurring Traveler sprites: Winter and future editions use uploaded art */
+.game-scene .traveler.studio-custom-traveler.is-pacing .traveler-sprite{animation:studioTravelerWalk 0.65s steps(1,end) infinite!important}
+.game-scene .traveler.studio-custom-traveler.is-thinking .traveler-sprite{animation:studioTravelerThink 4s ease-in-out infinite!important}
+@keyframes studioTravelerWalk{0%,100%{background-image:var(--studio-traveler-idle);translate:0 0}50%{background-image:var(--studio-traveler-walk);translate:0 -2px}}
+@keyframes studioTravelerThink{0%,75%,100%{background-image:var(--studio-traveler-idle);transform:rotate(0)}85%{background-image:var(--studio-traveler-action);transform:rotate(-2deg)}}
+
+.studio-preview-banner{position:sticky;top:0;z-index:100;background:#315b4c;color:#fff1da;padding:10px 18px;text-align:center;font:11px 'Space Mono',monospace;letter-spacing:.5px}
