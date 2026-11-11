@@ -72,7 +72,10 @@
         "show_gnoll": false,
         "gnoll_roar": false,
         "squirrel_eligible": true,
-        "show_puppies": false
+        "show_puppies": false,
+        "characters": [
+          "squirrel"
+        ]
       }
     },
     "shaded_path": {
@@ -102,7 +105,11 @@
         "show_gnoll": true,
         "gnoll_roar": false,
         "squirrel_eligible": true,
-        "show_puppies": false
+        "show_puppies": false,
+        "characters": [
+          "gnoll",
+          "squirrel"
+        ]
       }
     },
     "tree_gnoll": {
@@ -132,7 +139,11 @@
         "show_gnoll": true,
         "gnoll_roar": true,
         "squirrel_eligible": true,
-        "show_puppies": false
+        "show_puppies": false,
+        "characters": [
+          "gnoll",
+          "squirrel"
+        ]
       }
     },
     "riddle_success": {
@@ -162,7 +173,11 @@
         "show_gnoll": true,
         "gnoll_roar": false,
         "squirrel_eligible": true,
-        "show_puppies": false
+        "show_puppies": false,
+        "characters": [
+          "gnoll",
+          "squirrel"
+        ]
       }
     },
     "empty_cave": {
@@ -177,7 +192,10 @@
         "show_gnoll": true,
         "gnoll_roar": true,
         "squirrel_eligible": false,
-        "show_puppies": false
+        "show_puppies": false,
+        "characters": [
+          "gnoll"
+        ]
       }
     },
     "puppy_cave": {
@@ -207,7 +225,10 @@
         "show_gnoll": false,
         "gnoll_roar": false,
         "squirrel_eligible": false,
-        "show_puppies": true
+        "show_puppies": true,
+        "characters": [
+          "puppies"
+        ]
       }
     },
     "after_puppies": {
@@ -232,7 +253,10 @@
         "show_gnoll": false,
         "gnoll_roar": false,
         "squirrel_eligible": true,
-        "show_puppies": false
+        "show_puppies": false,
+        "characters": [
+          "squirrel"
+        ]
       }
     },
     "bright_path": {
@@ -262,7 +286,10 @@
         "show_gnoll": false,
         "gnoll_roar": false,
         "squirrel_eligible": true,
-        "show_puppies": false
+        "show_puppies": false,
+        "characters": [
+          "squirrel"
+        ]
       }
     },
     "bathing": {
@@ -287,7 +314,10 @@
         "show_gnoll": false,
         "gnoll_roar": false,
         "squirrel_eligible": true,
-        "show_puppies": false
+        "show_puppies": false,
+        "characters": [
+          "squirrel"
+        ]
       }
     },
     "river": {
@@ -317,7 +347,8 @@
         "show_gnoll": false,
         "gnoll_roar": false,
         "squirrel_eligible": false,
-        "show_puppies": false
+        "show_puppies": false,
+        "characters": []
       }
     },
     "castle": {
@@ -347,7 +378,8 @@
         "show_gnoll": false,
         "gnoll_roar": false,
         "squirrel_eligible": false,
-        "show_puppies": false
+        "show_puppies": false,
+        "characters": []
       }
     }
   },
@@ -490,5 +522,35 @@
     "shadow_fight_chance": 0.1,
     "squirrel_behavior": "peek",
     "shadow_roll": "once_per_run"
+  },
+  "cast": {
+    "traveler": {
+      "name": "The Traveler",
+      "image": "assets/traveler-idle.png",
+      "action_image": "assets/traveler-walk1.png",
+      "chance": 1,
+      "behavior": "pacing"
+    },
+    "gnoll": {
+      "name": "Forest Gnoll",
+      "image": "assets/gnoll-idle.png",
+      "action_image": "assets/gnoll-roar.png",
+      "chance": 1,
+      "behavior": "menace"
+    },
+    "squirrel": {
+      "name": "Forest Squirrel",
+      "image": "assets/squirrel-peek.png",
+      "action_image": "assets/squirrel-hop.png",
+      "chance": 0.55,
+      "behavior": "peek"
+    },
+    "puppies": {
+      "name": "Puppies",
+      "image": "assets/reward-legendary.png",
+      "action_image": "",
+      "chance": 1,
+      "behavior": "bounce"
+    }
   }
 }

@@ -12,6 +12,30 @@ const DEFAULT_COPY={"opening":{"brand":"MONTHLY ADVENTURE","eyebrow":"A BRANCHIN
 const AUTUMN_SCENES={start:'scene-forest-fork.png',shaded_path:'scene-forest-shaded.png',tree_gnoll:'scene-forest-shaded.png',riddle_success:'scene-forest-shaded.png',bright_path:'scene-forest-bright.png',bathing:'scene-forest-bright.png',after_puppies:'scene-forest-bright.png',empty_cave:'scene-cave.png',puppy_cave:'scene-cave.png',river:'scene-river.png',castle:'scene-castle.png'};
 const AUTUMN_PALETTE={ink:'#f5e9cf',muted:'#b8aa91',panel:'#222832',gold:'#e8b86c',moss:'#687c55',line:'#56606a',night:'#171b22',rust:'#c46b3c'};
 const DEFAULT_APPEARANCE={squirrel_chance:0.55,shadow_fight_chance:0.10,squirrel_behavior:'peek',shadow_roll:'once_per_run'};
+const DEFAULT_CAST={
+ traveler:{name:'The Traveler',image:'assets/traveler-idle.png',action_image:'assets/traveler-walk1.png',chance:1,behavior:'pacing'},
+ gnoll:{name:'Forest Gnoll',image:'assets/gnoll-idle.png',action_image:'assets/gnoll-roar.png',chance:1,behavior:'idle'},
+ squirrel:{name:'Forest Squirrel',image:'assets/squirrel-peek.png',action_image:'assets/squirrel-hop.png',chance:.55,behavior:'peek'},
+ puppies:{name:'Puppies',image:'assets/reward-legendary.png',action_image:'',chance:1,behavior:'bounce'}
+};
+function ensureCast(){
+ config.cast ||= {};
+ if(edition==='autumn-01')enrichMissing(config.cast,DEFAULT_CAST);
+ for(const [id,ch] of Object.entries(config.cast)){
+  ch.name ||= id; ch.image ||= config.theme?.characters?.[id]||'';
+  ch.chance = Number.isFinite(Number(ch.chance))?Math.max(0,Math.min(1,Number(ch.chance))):1;
+  ch.behavior ||= 'idle';
+ }
+ for(const node of Object.values(config.nodes||{})){
+  node.presentation ||= {};
+  const pr=node.presentation;
+  if(!Array.isArray(pr.characters))pr.characters=[
+   ...(pr.show_gnoll?['gnoll']:[]),
+   ...(pr.squirrel_eligible?['squirrel']:[]),
+   ...(pr.show_puppies?['puppies']:[])
+  ];
+ }
+}
 const PALETTE_LABELS={ink:'Main text',muted:'Muted text',panel:'Question panel',gold:'Gold highlight',moss:'Moss green',line:'Borders',night:'Night backdrop',rust:'Rust / buttons'};
 function assetSrc(path){if(!path)return '';const value=String(path);return value.startsWith('assets/')?'../'+value:value;}
 function enrichMissing(target,defaults){let changed=false;if(!target||typeof target!=='object')return false;for(const [key,value] of Object.entries(defaults)){if(target[key]===undefined||target[key]===null){target[key]=clone(value);changed=true;}else if(value&&typeof value==='object'&&!Array.isArray(value)&&typeof target[key]==='object'&&!Array.isArray(target[key]))changed=enrichMissing(target[key],value)||changed;}return changed;}
@@ -23,7 +47,7 @@ function ensureCopy(){config.ui_text ||= clone(DEFAULT_COPY); for(const [section
 
 const endings=[bad,...tiers];
 const clone=obj=>JSON.parse(JSON.stringify(obj));
-const blank=(title='The Winter Quest',season='winter')=>({title,season,start_node:'start',theme:{accent:'#7fa6bd',background:'#192a39',map_label:title,description:'A new adventure begins…',scenes:{},characters:{},palette:clone(AUTUMN_PALETTE)},appearance:clone(DEFAULT_APPEARANCE),nodes:{start:{location:'THE CROSSROADS',title:'A new road ahead',description:'The world opens before you. What will you do?',choices:[{label:'Continue onward',target:'!basic',shadow:false}]}},outcomes:Object.fromEntries(endings.map(k=>[k,{tier:k.toUpperCase(),title:k==='perished'?'You have perished':`Your ${k} reward`,description:'Write this ending here.',item:k==='perished'?'No item collected':k}])),rewards:Object.fromEntries(tiers.map(k=>[k,{name:k[0].toUpperCase()+k.slice(1)+' prize',tier:k.toUpperCase(),image:''}])),map:{label:title,description:'A mysterious region waits to be explored.',locked:true},ui_text:clone(DEFAULT_COPY)});
+const blank=(title='The Winter Quest',season='winter')=>({title,season,start_node:'start',theme:{accent:'#7fa6bd',background:'#192a39',map_label:title,description:'A new adventure begins…',scenes:{},characters:{},palette:clone(AUTUMN_PALETTE)},appearance:clone(DEFAULT_APPEARANCE),nodes:{start:{location:'THE CROSSROADS',title:'A new road ahead',description:'The world opens before you. What will you do?',choices:[{label:'Continue onward',target:'!basic',shadow:false}]}},outcomes:Object.fromEntries(endings.map(k=>[k,{tier:k.toUpperCase(),title:k==='perished'?'You have perished':`Your ${k} reward`,description:'Write this ending here.',item:k==='perished'?'No item collected':k}])),rewards:Object.fromEntries(tiers.map(k=>[k,{name:k[0].toUpperCase()+k.slice(1)+' prize',tier:k.toUpperCase(),image:''}])),map:{label:title,description:'A mysterious region waits to be explored.',locked:true},ui_text:clone(DEFAULT_COPY),cast:{traveler:clone(DEFAULT_CAST.traveler)}});
 let config=null,edition='',entries=[],tab='overview',nodeKey='',dirty=false,user=null;
 const say=(message,error=false)=>{const el=$('save-state');el.textContent=message;el.style.color=error?'#ffaaa0':'#d3c7ad';};
 const cleanId=s=>s.toLowerCase().replace(/[^a-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,50);
@@ -42,14 +66,14 @@ if(edition==='autumn-01'){const result=await hydrateAutumnDraft(current);config=
 else config=current||blank(entries.find(x=>x.id===edition)?.title||edition,entries.find(x=>x.id===edition)?.season||'winter');
 config.theme ||= {};config.theme.scenes ||= {};config.theme.characters ||= {};config.theme.palette ||= clone(AUTUMN_PALETTE);
 config.appearance ||= clone(DEFAULT_APPEARANCE);
-ensureCopy();dirty=filled;nodeKey=Object.keys(config.nodes)[0]||'';
+ensureCopy();ensureCast();dirty=filled;nodeKey=Object.keys(config.nodes)[0]||'';
 say(filled?'● Missing Autumn defaults loaded — click Save Draft to keep them':data?.approved_at?'✓ Draft loaded (reviewed snapshot available)':'Draft loaded — not yet approved');render();}
-function render(){if(!config)return;const t=config.theme||={};$('edition-title').value=config.title||'';$('edition-season').value=config.season||'other';$('accent-color').value=/^#[0-9a-fA-F]{6}$/.test(t.accent)?t.accent:'#c46b3c';$('background-color').value=/^#[0-9a-fA-F]{6}$/.test(t.background)?t.background:'#171b22';$('edition-description').value=t.description||'';renderNodePickers();renderNode();renderCopy();renderRewards();renderArt();renderMap();renderPalette();renderAppearance();if(tab==='guild')loadGuild();if(tab==='preview')renderPreviewOpening();}
+function render(){if(!config)return;const t=config.theme||={};$('edition-title').value=config.title||'';$('edition-season').value=config.season||'other';$('accent-color').value=/^#[0-9a-fA-F]{6}$/.test(t.accent)?t.accent:'#c46b3c';$('background-color').value=/^#[0-9a-fA-F]{6}$/.test(t.background)?t.background:'#171b22';$('edition-description').value=t.description||'';renderNodePickers();renderNode();renderCopy();renderRewards();renderArt();renderMap();renderPalette();renderAppearance();renderCast();if(tab==='guild')loadGuild();if(tab==='preview')renderPreviewOpening();}
 function renderNodePickers(){for(const id of ['node-picker','start-node','art-scene']){const select=$(id),previous=id==='node-picker'?nodeKey:id==='start-node'?config.start_node:select.value;select.innerHTML='';for(const [key,node] of Object.entries(config.nodes)){const o=document.createElement('option');o.value=key;o.textContent=`${node.title||key} (${key})`;select.append(o);}select.value=previous;if(!select.value&&select.options.length)select.selectedIndex=0;}nodeKey=$('node-picker').value;}
 function renderNode(){const node=config.nodes[nodeKey];if(!node)return;$('node-location').value=node.location||'';$('node-title').value=node.title||'';$('node-description').value=node.description||'';$('node-ending').value=node.ending||'';const p=node.presentation||={};$('node-background').value=p.background||config.theme.scenes?.[nodeKey]||'';
 $('node-motion').value=p.traveler_motion||'thinking';
 $('node-gnoll').checked=!!p.show_gnoll;$('node-roar').checked=!!p.gnoll_roar;
-$('node-squirrel').checked=!!p.squirrel_eligible;$('node-puppies').checked=!!p.show_puppies;
+$('node-squirrel').checked=!!p.squirrel_eligible;$('node-puppies').checked=!!p.show_puppies;renderSceneCast(p);
 const list=$('choice-editor');list.innerHTML='';(node.choices||[]).forEach((choice,i)=>{const wrap=document.createElement('div');wrap.className='choice';const dests=[...Object.keys(config.nodes).map(key=>[key,config.nodes[key].title||key]),...endings.map(k=>['!'+k,k==='perished'?'BAD — Perished':k.toUpperCase()+' reward'])];wrap.innerHTML=`<div class="choice-head"><strong>Choice ${i+1}</strong><button class="danger small" data-remove="${i}">Remove</button></div><label>Answer text<input class="choice-text" value="${safe(choice.label)}" maxlength="240"></label><label>Next destination<select class="choice-target">${dests.map(([key,label])=>`<option value="${safe(key)}" ${choice.target===key?'selected':''}>${safe(label)} (${safe(key)})</option>`).join('')}</select></label><label class="inline"><input type="checkbox" class="choice-shadow" ${choice.shadow?'checked':''}> Hidden / shadow choice</label>`;wrap.querySelector('.choice-text').addEventListener('input',e=>{choice.label=e.target.value;mark();});wrap.querySelector('.choice-target').addEventListener('change',e=>{choice.target=e.target.value;mark();});wrap.querySelector('.choice-shadow').addEventListener('change',e=>{choice.shadow=e.target.checked;mark();});wrap.querySelector('[data-remove]').addEventListener('click',()=>{node.choices.splice(i,1);mark();renderNode();});list.append(wrap);});}
 function renderCopy(){
  ensureCopy();const root=$('copy-editor');root.innerHTML='';
@@ -79,6 +103,49 @@ for(const [key,url] of Object.entries(config.theme.characters||{})){
  const label=document.createElement('label');label.textContent=key.replace(/_/g,' ');const input=document.createElement('input');input.value=url||'';input.placeholder='assets/character.png or URL';input.addEventListener('input',()=>{config.theme.characters[key]=input.value;mark();});label.append(input);editor.append(label);
  }
 }
+function renderCast(){
+ const root=$('cast-editor');if(!root)return;root.innerHTML='';
+ for(const [id,ch] of Object.entries(config.cast||{})){
+  const card=document.createElement('div');card.className='cast-card';
+  card.innerHTML=`<div class="row"><strong>${safe(ch.name||id)}</strong><code>${safe(id)}</code></div>
+    <label>Display name<input data-key="name" value="${safe(ch.name||id)}"></label>
+    <label>Sprite image URL<input data-key="image" value="${safe(ch.image||'')}"></label>
+    <label>Alternate / action image URL<input data-key="action_image" value="${safe(ch.action_image||'')}"></label>
+    <div class="two"><label>Appearance chance (%)<input type="number" min="0" max="100" step="1" data-key="chance" value="${Math.round(100*(ch.chance??1))}"></label>
+    <label>Behavior<select data-key="behavior">${['idle','pacing','peek','bounce','menace'].map(mode=>`<option value="${mode}" ${mode===ch.behavior?'selected':''}>${mode}</option>`).join('')}</select></label></div>
+    <p class="hint">Chance applies when this character is assigned to a scene. Hidden choice probability is configured separately in Edition Details.</p>`;
+  for(const e of card.querySelectorAll('[data-key]'))e.addEventListener(e.tagName==='SELECT'?'change':'input',()=>{
+   const k=e.dataset.key;ch[k]=k==='chance'?Math.max(0,Math.min(1,Number(e.value)/100)):e.value;if(id==='squirrel'&&k==='chance'){config.appearance.squirrel_chance=ch.chance;$('squirrel-chance').value=Math.round(ch.chance*100);}mark();
+  });
+  root.append(card);
+ }
+ renderSceneCast(config.nodes[nodeKey]?.presentation||{});
+}
+function renderSceneCast(p){
+ const root=$('node-cast');if(!root)return;root.innerHTML='';
+ p.characters ||= [];
+ for(const [id,ch] of Object.entries(config.cast||{})){
+  if(id==='traveler')continue;
+  const label=document.createElement('label');label.className='inline scene-check';
+  const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=p.characters.includes(id);
+  checkbox.addEventListener('change',()=>{p.characters=checkbox.checked?[...new Set([...p.characters,id])]:p.characters.filter(x=>x!==id);mark();});
+  label.append(checkbox,document.createTextNode(' '+(ch.name||id)));root.append(label);
+ }
+}
+function addCastCharacter(){
+ const name=prompt('Name your creature (e.g. Winter Ogre):','Winter Ogre');if(!name)return;
+ const id=cleanId(name);if(!id||config.cast[id])return alert('That creature already exists.');
+ config.cast[id]={name:name.trim(),image:'',action_image:'',chance:1,behavior:'idle'};
+ mark();renderCast();
+}
+function removeCastCharacter(){
+ const keys=Object.keys(config.cast).filter(x=>x!=='traveler');
+ const id=prompt('Enter the character ID to remove: '+keys.join(', '));if(!id)return;
+ if(!keys.includes(id))return alert('Choose an existing non-Traveler character ID.');
+ if(!confirm('Remove '+id+' from this edition and all its scenes?'))return;
+ delete config.cast[id];for(const n of Object.values(config.nodes))n.presentation.characters=(n.presentation.characters||[]).filter(x=>x!==id);
+ mark();renderCast();renderNode();
+}
 function renderPalette(){const container=$('palette-editor');container.innerHTML='';config.theme.palette ||= clone(AUTUMN_PALETTE);
 for(const [key,label] of Object.entries(PALETTE_LABELS)){const field=document.createElement('label');field.textContent=label;const input=document.createElement('input');input.type='color';input.value=/^#[0-9a-fA-F]{6}$/.test(config.theme.palette[key])?config.theme.palette[key]:AUTUMN_PALETTE[key];input.addEventListener('input',()=>{config.theme.palette[key]=input.value;mark();});field.append(input);container.append(field);}}
 function renderAppearance(){config.appearance ||= clone(DEFAULT_APPEARANCE);$('squirrel-chance').value=Math.round((config.appearance.squirrel_chance??0.55)*100);$('shadow-chance').value=Math.round((config.appearance.shadow_fight_chance??0.1)*100);}
@@ -86,26 +153,33 @@ function renderAppearance(){config.appearance ||= clone(DEFAULT_APPEARANCE);$('s
 function renderMap(){$('map-label').value=config.map?.label||'';$('map-description').value=config.map?.description||'';$('map-locked').value=String(config.map?.locked!==false);}
 function switchTab(next){tab=next;document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===next));document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('hidden',p.id!=='panel-'+next));if(next==='guild')loadGuild();if(next==='preview')renderPreviewOpening();}
 function verifyDraft(){if(!config.title?.trim())throw Error('An edition title is required.');if(!Object.keys(config.nodes).length||!config.nodes[config.start_node])throw Error('Select an existing opening scene.');for(const [key,node] of Object.entries(config.nodes)){if(!node.title?.trim())throw Error(`Scene ${key} needs a title.`);if(!node.ending && !(node.choices||[]).length)throw Error(`Scene ${key} has no choices or ending.`);for(const c of node.choices||[]){if(!c.label?.trim())throw Error(`A choice in ${key} has no text.`);if(!c.target.startsWith('!')&&!config.nodes[c.target])throw Error(`Broken link: ${key} → ${c.target}.`);if(c.target.startsWith('!')&&!endings.includes(c.target.slice(1)))throw Error(`Unknown ending: ${c.target}.`);}}}
-async function saveDraft(approve=false){verifyDraft();say(approve?'Approving content…':'Saving draft…');const {error}=await db.from('quest_studio_editions').upsert({edition_id:edition,draft_config:config,...(approve?{approved_config:config,approved_at:new Date().toISOString()}:{}),updated_at:new Date().toISOString(),updated_by:user.id},{onConflict:'edition_id'});if(error)throw error;dirty=false;say(approve?'✓ Content approved in Studio — game engine not yet connected':'✓ Draft saved to Supabase');}
-async function createEdition(){const proposed=prompt('Edition slug, e.g. winter-02 (letters, numbers, dashes):','winter-02');if(!proposed)return;const id=cleanId(proposed);if(!/^[a-z][a-z0-9_-]{2,49}$/.test(id))return alert('Use 3–50 characters, starting with a letter.');const title=prompt('Title for this newsletter edition:','The Winter Keep')?.trim();if(!title)return;const season=prompt('Season (winter, spring, summer, autumn, other):','winter')?.trim().toLowerCase()||'other';const {error}=await db.from('editions').insert({id,title,season,status:'locked'});if(error)throw error;await loadEditions(id);config=blank(title,season);ensureCopy();mark();render();}
-async function importAutumn(){if(!edition)return;if(!confirm('Replace the CURRENT STUDIO DRAFT with the original Autumn story template? This does not change the live game.'))return;const response=await fetch('autumn-template.json',{cache:'no-store'});if(!response.ok)throw Error('Autumn template not found');config=await response.json();ensureCopy();const meta=entries.find(x=>x.id===edition);if(edition!=='autumn-01'&&meta){config.title=meta.title;config.season=meta.season;config.map={...config.map,label:meta.title,locked:true};}nodeKey='start';mark();render();}
-async function upload(character){if(!user)return;const file=$('art-file').files[0];if(!file)throw Error('Choose an image first.');if(file.size>5*1024*1024)throw Error('Maximum 5 MB.');if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type))throw Error('Unsupported image format.');const safeFile=file.name.replace(/[^a-zA-Z0-9._-]/g,'-');const key=(character?'characters/':'scenes/')+edition+'/'+Date.now()+'-'+safeFile;const {error}=await db.storage.from('quest-art').upload(key,file,{contentType:file.type,upsert:false});if(error)throw error;const {data}=db.storage.from('quest-art').getPublicUrl(key);if(character){const label=prompt('Character key (e.g. traveler, troll, owl):',file.name.split('.')[0]);if(!label)return;config.theme.characters[cleanId(label)]=data.publicUrl;}else {const key=$('art-scene').value;config.theme.scenes[key]=data.publicUrl;config.nodes[key].presentation ||= {};config.nodes[key].presentation.background=data.publicUrl;}mark();renderArt();$('upload-feedback').textContent='Uploaded! Save the draft to preserve its assignment.';}
+async function saveDraft(approve=false){verifyDraft();say(approve?'Approving content…':'Saving draft…');const {error}=await db.from('quest_studio_editions').upsert({edition_id:edition,draft_config:config,...(approve?{approved_config:config,approved_at:new Date().toISOString()}:{}),updated_at:new Date().toISOString(),updated_by:user.id},{onConflict:'edition_id'});if(error)throw error;dirty=false;say(approve?'✓ Snapshot approved. You can now publish it.':'✓ Draft saved. Approve changes again before publishing.');}
+async function createEdition(){const proposed=prompt('Edition slug, e.g. winter-02 (letters, numbers, dashes):','winter-02');if(!proposed)return;const id=cleanId(proposed);if(!/^[a-z][a-z0-9_-]{2,49}$/.test(id))return alert('Use 3–50 characters, starting with a letter.');const title=prompt('Title for this newsletter edition:','The Winter Keep')?.trim();if(!title)return;const season=prompt('Season (winter, spring, summer, autumn, other):','winter')?.trim().toLowerCase()||'other';const {error}=await db.from('editions').insert({id,title,season,status:'locked'});if(error)throw error;await loadEditions(id);config=blank(title,season);if(confirm('Start this new edition with a copy of Autumn’s story layout? Choose Cancel to start with a blank adventure.')){const seed=await autumnDefaults();config=seed;config.title=title;config.season=season;config.map={...seed.map,label:title,locked:true};}ensureCopy();ensureCast();mark();render();}
+async function importAutumn(){if(!edition)return;if(!confirm('Replace the CURRENT STUDIO DRAFT with the original Autumn story template? This does not change the live game.'))return;const response=await fetch('autumn-template.json',{cache:'no-store'});if(!response.ok)throw Error('Autumn template not found');config=await response.json();ensureCopy();ensureCast();const meta=entries.find(x=>x.id===edition);if(edition!=='autumn-01'&&meta){config.title=meta.title;config.season=meta.season;config.map={...config.map,label:meta.title,locked:true};}nodeKey='start';mark();render();}
+async function upload(character){if(!user)return;const file=$('art-file').files[0];if(!file)throw Error('Choose an image first.');if(file.size>5*1024*1024)throw Error('Maximum 5 MB.');if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type))throw Error('Unsupported image format.');const safeFile=file.name.replace(/[^a-zA-Z0-9._-]/g,'-');const key=(character?'characters/':'scenes/')+edition+'/'+Date.now()+'-'+safeFile;const {error}=await db.storage.from('quest-art').upload(key,file,{contentType:file.type,upsert:false});if(error)throw error;const {data}=db.storage.from('quest-art').getPublicUrl(key);if(character){const label=prompt('Character key (e.g. traveler, troll, owl):',file.name.split('.')[0]);if(!label)return;const charKey=cleanId(label);config.theme.characters[charKey]=data.publicUrl;config.cast ||= {};config.cast[charKey] ||= {name:label,image:'',action_image:'',chance:1,behavior:'idle'};config.cast[charKey].image=data.publicUrl;renderCast();}else {const key=$('art-scene').value;config.theme.scenes[key]=data.publicUrl;config.nodes[key].presentation ||= {};config.nodes[key].presentation.background=data.publicUrl;}mark();renderArt();$('upload-feedback').textContent='Uploaded! Save the draft to preserve its assignment.';}
 async function loadGuild(){if(!edition)return;$('guild-list').innerHTML='<tr><td colspan="6">Loading…</td></tr>';const {data,error}=await db.rpc('quest_studio_guild',{p_edition_id:edition});if(error){$('guild-list').innerHTML='<tr><td colspan="6">'+safe(error.message)+'</td></tr>';return;}const counts={};for(const row of data)counts[row.outcome]=(counts[row.outcome]||0)+1;$('guild-summary').textContent=`${data.length} winning players · `+tiers.map(t=>`${t.toUpperCase()}: ${counts[t]||0}`).join(' · ');const list=$('guild-list');list.innerHTML='';for(const player of data){const tr=document.createElement('tr');tr.innerHTML=`<td>${safe(player.username)}</td><td>${safe(player.outcome.toUpperCase())}</td><td>${player.duration_ms==null?'—':(player.duration_ms/1000).toFixed(1)+' s'}</td><td>${player.attempts}</td><td>${player.hidden?'Hidden':'Visible'}</td><td><button class="small ${player.hidden?'secondary':'danger'}">${player.hidden?'Restore':'Hide'}</button></td>`;tr.querySelector('button').addEventListener('click',async()=>{const reason=player.hidden?'':prompt('Moderation note (internal only):','Inappropriate username or suspicious entry');if(reason===null)return;const {error:e}=await db.from('quest_guild_moderation').upsert({edition_id:edition,player_id:player.player_id,hidden:!player.hidden,note:reason,updated_at:new Date().toISOString()},{onConflict:'edition_id,player_id'});if(e)alert(e.message);else loadGuild();});list.append(tr);}if(!data.length)list.innerHTML='<tr><td colspan="6">No successful attempts recorded for this edition yet.</td></tr>';}
 function previewImage(nodeKey){
- const node=config.nodes[nodeKey]||{}, p=node.presentation||{};
+ const node=config.nodes[nodeKey]||{},p=node.presentation||{};
  const backdrop=p.background||config.theme.scenes?.[nodeKey]||(edition==='autumn-01'&&AUTUMN_SCENES[nodeKey]?'assets/'+AUTUMN_SCENES[nodeKey]:'');
  const stage=$('preview-image');stage.style.backgroundImage=backdrop?`url("${assetSrc(backdrop).replace(/["\\]/g,'')}")`:'';
  stage.style.backgroundColor=config.theme.background||'#26383d';
- const traveler=config.theme.characters?.traveler|| (edition==='autumn-01'?'assets/traveler-idle.png':null);
+ const traveler=config.cast?.traveler?.image||config.theme.characters?.traveler|| (edition==='autumn-01'?'assets/traveler-idle.png':null);
  const img=$('preview-character');img.hidden=!traveler;if(traveler)img.src=assetSrc(traveler);
- const gnoll=$('preview-gnoll'),squirrel=$('preview-squirrel'),puppies=$('preview-puppies');
- gnoll.hidden=!p.show_gnoll;if(!gnoll.hidden)gnoll.src=assetSrc(config.theme.characters?.[p.gnoll_roar?'gnoll_roar':'gnoll']||config.theme.characters?.gnoll||'');
- squirrel.hidden=!p.squirrel_eligible;if(!squirrel.hidden)squirrel.src=assetSrc(config.theme.characters?.squirrel||'');
- puppies.hidden=!p.show_puppies;if(!puppies.hidden)puppies.src=assetSrc(config.theme.characters?.puppies||'');
+ for(const id of ['preview-gnoll','preview-squirrel','preview-puppies'])$(id).hidden=true;
+ const previous=$('preview-cast');if(previous)previous.remove();
+ const layer=document.createElement('div');layer.id='preview-cast';layer.className='preview-cast';stage.append(layer);
+ const castKeys=p.characters||[];
+ castKeys.forEach((key,i)=>{
+   const character=config.cast?.[key];if(!character?.image)return;
+   const art=document.createElement('img');art.src=assetSrc(character.image);
+   art.alt=character.name||key;art.title=`${character.name||key}: ${Math.round(100*(character.chance??1))}% appearance chance`;
+   art.className='preview-cast-character'+(character.behavior==='peek'?' preview-cast-small':'');
+   art.style.right=(12+i*19)+'%';layer.append(art);
+ });
 }
 function previewClear(){
  $('preview-ending').innerHTML='';$('preview-choices').innerHTML='';
- $('preview-image').style.backgroundImage='';$('preview-character').hidden=true;for(const id of ['preview-gnoll','preview-squirrel','preview-puppies'])$(id).hidden=true;
+ $('preview-image').style.backgroundImage='';$('preview-cast')?.remove();$('preview-character').hidden=true;for(const id of ['preview-gnoll','preview-squirrel','preview-puppies'])$(id).hidden=true;
 }
 function renderPreviewOpening(){
  previewClear();$('preview-stage-label').textContent='OPENING · DRAFT';$('preview-location').textContent=copyText('opening','eyebrow');
@@ -157,10 +231,27 @@ function inspectDraft(){
  if(unreachable.length)messages.push('⚠ Unreachable scenes: '+unreachable.join(', '));else messages.push('✓ All '+visited.size+' scenes are reachable (including hidden choices).');
  for(const tier of endings)if(!exits.has(tier))messages.push('⚠ No reachable '+tier.toUpperCase()+' ending.');
  for(const [key,node] of Object.entries(config.nodes))if(!node.ending&&!(node.choices||[]).length)messages.push('✕ '+key+' has no choices or ending.');
- messages.push('ℹ This review checks the draft story, not the production server prize rules, account flows, or odds.');
+ messages.push('ℹ The server also checks each published choice against an immutable run snapshot. Confirm auth, rewards, and cooldown on the test site before public promotion.');
  const box=$('preview-review');box.innerHTML='';for(const m of messages){const el=document.createElement('p');el.textContent=m;box.append(el);}
 }
-function bind(){on('edition-picker','change',()=>loadEdition($('edition-picker').value).catch(err=>alert(err.message)));on('new-edition','click',()=>createEdition().catch(err=>alert(err.message)));on('import-autumn','click',()=>importAutumn().catch(err=>alert(err.message)));on('save-draft','click',()=>saveDraft().catch(err=>say(err.message,true)));on('approve-draft','click',()=>{if(confirm('Approve this editorial snapshot? This does NOT launch it in the live game.'))saveDraft(true).catch(err=>say(err.message,true));});document.querySelectorAll('.tabs button').forEach(el=>el.addEventListener('click',()=>switchTab(el.dataset.tab)));dataField('edition-title',v=>config.title=v);dataField('edition-season',v=>config.season=v,'change');dataField('accent-color',v=>config.theme.accent=v);dataField('background-color',v=>config.theme.background=v);dataField('edition-description',v=>config.theme.description=v);dataField('squirrel-chance',v=>{if(v==='')return;const n=Number(v);if(n>=0&&n<=100)config.appearance.squirrel_chance=n/100;});dataField('shadow-chance',v=>{if(v==='')return;const n=Number(v);if(n>=0&&n<=100)config.appearance.shadow_fight_chance=n/100;});dataField('start-node',v=>config.start_node=v,'change');on('node-picker','change',()=>{nodeKey=$('node-picker').value;renderNode();});dataField('node-location',v=>config.nodes[nodeKey].location=v);dataField('node-title',v=>config.nodes[nodeKey].title=v);dataField('node-description',v=>config.nodes[nodeKey].description=v);dataField('node-ending',v=>{if(v)config.nodes[nodeKey].ending=v;else delete config.nodes[nodeKey].ending;},'change');dataField('node-background',v=>{const node=config.nodes[nodeKey];node.presentation ||= {};node.presentation.background=v;config.theme.scenes[nodeKey]=v;});dataField('node-motion',v=>{config.nodes[nodeKey].presentation ||= {};config.nodes[nodeKey].presentation.traveler_motion=v;},'change');
-for(const [id,key] of [['node-gnoll','show_gnoll'],['node-roar','gnoll_roar'],['node-squirrel','squirrel_eligible'],['node-puppies','show_puppies']])on(id,'change',()=>{config.nodes[nodeKey].presentation ||= {};config.nodes[nodeKey].presentation[key]=$(id).checked;mark();});on('add-choice','click',()=>{config.nodes[nodeKey].choices ||= [];config.nodes[nodeKey].choices.push({label:'New choice',target:'!perished',shadow:false});mark();renderNode();});on('add-node','click',()=>{const name=prompt('New scene ID (e.g. frozen_bridge):','new_scene');if(!name)return;const id=cleanId(name);if(!id||config.nodes[id])return alert('Invalid or existing scene ID.');config.nodes[id]={location:id.toUpperCase(),title:'New scene',description:'Write the next part of your story.',presentation:{background:'',traveler_motion:'thinking',show_gnoll:false,gnoll_roar:false,squirrel_eligible:false,show_puppies:false},choices:[{label:'Continue',target:'!perished',shadow:false}]};nodeKey=id;mark();renderNodePickers();renderNode();});on('remove-node','click',()=>{if(Object.keys(config.nodes).length<2)return alert('Keep at least one scene.');if(!confirm('Delete this scene? Check other choices for links to it.'))return;delete config.nodes[nodeKey];nodeKey=Object.keys(config.nodes)[0];if(!config.nodes[config.start_node])config.start_node=nodeKey;mark();renderNodePickers();renderNode();});dataField('map-label',v=>{config.map ||= {};config.map.label=v;});dataField('map-description',v=>{config.map ||= {};config.map.description=v;});dataField('map-locked',v=>{config.map ||= {};config.map.locked=v==='true';},'change');on('upload-art','click',()=>upload(false).catch(err=>$('upload-feedback').textContent=err.message));on('upload-character','click',()=>upload(true).catch(err=>$('upload-feedback').textContent=err.message));on('reload-guild','click',()=>loadGuild());on('preview-restart','click',()=>renderPreview(config.start_node));on('preview-opening','click',renderPreviewOpening);on('preview-hub','click',()=>renderPreviewHub());on('review-draft','click',inspectDraft);on('preview-show-shadow','change',()=>renderPreview(config.start_node));window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});}
+async function publishEdition(){
+ if(dirty)throw Error('Save and Approve Content before publishing.');
+ const id=edition;
+ const acknowledgement=prompt(`PUBLIC RELEASE: ${config.title} (${id}).\nThis will replace the active quest for new players and enable REAL prizes. Type PUBLISH to confirm:`);
+ if(acknowledgement!=='PUBLISH')return;
+ $('publish-edition').disabled=true;
+ say('Checking approved version and publishing…');
+ try{
+  const {data,error}=await db.rpc('quest_publish_edition',{p_edition_id:id});
+  if(error)throw error;
+  say(`✓ Published ${data.title} (release ${data.release_version}). New players now see this edition.`);
+  await loadEditions(id);
+ }finally{$('publish-edition').disabled=false;}
+}
+function bind(){on('edition-picker','change',()=>loadEdition($('edition-picker').value).catch(err=>alert(err.message)));on('new-edition','click',()=>createEdition().catch(err=>alert(err.message)));on('import-autumn','click',()=>importAutumn().catch(err=>alert(err.message)));on('save-draft','click',()=>saveDraft().catch(err=>say(err.message,true)));on('publish-edition','click',()=>publishEdition().catch(err=>say(err.message,true)));on('preview-full-game','click',()=>{if(dirty)return alert('Save Draft first, so the full-page preview can load your changes.');window.open('../?preview_edition='+encodeURIComponent(edition),'_blank','noopener');});on('add-cast','click',addCastCharacter);on('remove-cast','click',removeCastCharacter);on('approve-draft','click',()=>{if(confirm('Approve this editorial snapshot? Review before clicking Publish to make it live.'))saveDraft(true).catch(err=>say(err.message,true));});document.querySelectorAll('.tabs button').forEach(el=>el.addEventListener('click',()=>switchTab(el.dataset.tab)));dataField('edition-title',v=>config.title=v);dataField('edition-season',v=>config.season=v,'change');dataField('accent-color',v=>config.theme.accent=v);dataField('background-color',v=>config.theme.background=v);dataField('edition-description',v=>config.theme.description=v);dataField('squirrel-chance',v=>{if(v==='')return;const n=Number(v);if(n>=0&&n<=100){config.appearance.squirrel_chance=n/100;if(config.cast?.squirrel)config.cast.squirrel.chance=n/100;}});dataField('shadow-chance',v=>{if(v==='')return;const n=Number(v);if(n>=0&&n<=100)config.appearance.shadow_fight_chance=n/100;});dataField('start-node',v=>config.start_node=v,'change');on('node-picker','change',()=>{nodeKey=$('node-picker').value;renderNode();});dataField('node-location',v=>config.nodes[nodeKey].location=v);dataField('node-title',v=>config.nodes[nodeKey].title=v);dataField('node-description',v=>config.nodes[nodeKey].description=v);dataField('node-ending',v=>{if(v)config.nodes[nodeKey].ending=v;else delete config.nodes[nodeKey].ending;},'change');dataField('node-background',v=>{const node=config.nodes[nodeKey];node.presentation ||= {};node.presentation.background=v;config.theme.scenes[nodeKey]=v;});dataField('node-motion',v=>{config.nodes[nodeKey].presentation ||= {};config.nodes[nodeKey].presentation.traveler_motion=v;},'change');
+for(const [id,key] of [['node-gnoll','show_gnoll'],['node-roar','gnoll_roar'],['node-squirrel','squirrel_eligible'],['node-puppies','show_puppies']])on(id,'change',()=>{config.nodes[nodeKey].presentation ||= {};const p=config.nodes[nodeKey].presentation;p[key]=$(id).checked;
+ const creature={show_gnoll:'gnoll',squirrel_eligible:'squirrel',show_puppies:'puppies'}[key];
+ if(creature){p.characters ||= [];p.characters=p[key]?[...new Set([...p.characters,creature])]:p.characters.filter(x=>x!==creature);}
+ renderSceneCast(p);mark();});on('add-choice','click',()=>{config.nodes[nodeKey].choices ||= [];config.nodes[nodeKey].choices.push({label:'New choice',target:'!perished',shadow:false});mark();renderNode();});on('add-node','click',()=>{const name=prompt('New scene ID (e.g. frozen_bridge):','new_scene');if(!name)return;const id=cleanId(name);if(!id||config.nodes[id])return alert('Invalid or existing scene ID.');config.nodes[id]={location:id.toUpperCase(),title:'New scene',description:'Write the next part of your story.',presentation:{background:'',traveler_motion:'thinking',show_gnoll:false,gnoll_roar:false,squirrel_eligible:false,show_puppies:false,characters:[]},choices:[{label:'Continue',target:'!perished',shadow:false}]};nodeKey=id;mark();renderNodePickers();renderNode();});on('remove-node','click',()=>{if(Object.keys(config.nodes).length<2)return alert('Keep at least one scene.');if(!confirm('Delete this scene? Check other choices for links to it.'))return;delete config.nodes[nodeKey];nodeKey=Object.keys(config.nodes)[0];if(!config.nodes[config.start_node])config.start_node=nodeKey;mark();renderNodePickers();renderNode();});dataField('map-label',v=>{config.map ||= {};config.map.label=v;});dataField('map-description',v=>{config.map ||= {};config.map.description=v;});dataField('map-locked',v=>{config.map ||= {};config.map.locked=v==='true';},'change');on('upload-art','click',()=>upload(false).catch(err=>$('upload-feedback').textContent=err.message));on('upload-character','click',()=>upload(true).catch(err=>$('upload-feedback').textContent=err.message));on('reload-guild','click',()=>loadGuild());on('preview-restart','click',()=>renderPreview(config.start_node));on('preview-opening','click',renderPreviewOpening);on('preview-hub','click',()=>renderPreviewHub());on('review-draft','click',inspectDraft);on('preview-show-shadow','change',()=>renderPreview(config.start_node));window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});}
 bind();init();
 })();

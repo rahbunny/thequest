@@ -36,3 +36,15 @@
 .preview-image .preview-squirrel{left:4%;height:32px;max-width:45px}
 .preview-image .preview-puppies{left:auto;right:15%;height:70px;max-width:105px}
 @media(max-width:750px){.preview-image .preview-gnoll{height:75px;max-width:90px}.preview-image .preview-puppies{height:46px}}
+
+/* Quest Studio v0.4 character library and publishing */
+.cast-editor{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:12px;margin:14px 0}
+.cast-card{border:1px solid #62605b;border-radius:8px;padding:14px;background:#20282e}
+.cast-card label{margin-top:8px}.cast-card code{font-size:10px;color:#e8b86c}
+#node-cast{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 18px}
+.publish-action{background:#427c65!important;border:2px solid #80b298!important;color:#fff!important;font-weight:700}
+.publish-action:hover{filter:brightness(1.14)}
+
+.preview-cast{position:absolute;inset:0;pointer-events:none}
+.preview-cast-character{position:absolute;bottom:13px;width:85px;height:95px;object-fit:contain;image-rendering:pixelated;filter:drop-shadow(1px 2px 2px #08121baa)}
+.preview-cast-small{height:34px;width:38px}
